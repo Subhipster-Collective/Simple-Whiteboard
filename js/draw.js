@@ -3,9 +3,26 @@ let canvas, ctx;
 let prevX = 0;
 let prevY = 0;
 let isDown = false;
+let isAnonymous = '';
+let uid = '';
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
 function init() {
+
+    firebase.auth().onAuthStateChanged(function(user) {
+        if (user) {
+            // User is signed in.
+            isAnonymous = user.isAnonymous;
+            uid = user.uid;
+            document.write(uid);
+
+        } else {
+            // User is signed out.
+        }
+    });
+
+    let db = firebase.database();
+    db.ref().child('ergh').set({ID:uid});
 
     //initlaize canvas elements
     canvas = document.getElementById('myCanvas');
