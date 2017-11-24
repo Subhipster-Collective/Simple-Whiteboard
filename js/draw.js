@@ -1,5 +1,6 @@
 //globals so i dont have to pass stuff around all the time.
 let canvas, ctx;
+let db = '';
 let prevX = 0;
 let prevY = 0;
 let isDown = false;
@@ -10,9 +11,6 @@ function init() {
     //initlaize canvas elements
     canvas = document.getElementById('myCanvas');
     ctx = canvas.getContext('2d');
-
-    //log user into firebase / create room
-    handleUserLogin();
 
     //event listeners (asynchronous programming)
 
@@ -73,25 +71,4 @@ function draw(currX,currY) {
     ctx.stroke();
     prevX = currX;
     prevY = currY;
-}
-
-//networking stuff
-
-function handleUserLogin(){
-    firebase.auth().onAuthStateChanged((user) => {
-        if (user) {
-            // User is signed in.
-            let isAnonymous = user.isAnonymous;
-            let uid = user.uid;
-            //let db = firebase.database();
-            //db.ref().child('ergh').set({ID:uid});
-
-        } else {
-            // User is signed out.
-        }
-    });
-}
-
-function extractQueryString(name) {
-    let url = window.location.href;
 }
