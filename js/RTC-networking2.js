@@ -11,14 +11,12 @@ firebase.auth().onAuthStateChanged((user) => {
         const uid = user.uid;
         sessionId = Math.floor(Math.random()*1000000000);
         fbCon = firebase.database().ref();
-
-
         const configuration = {
             iceServers: [{ url: 'stun:stun.1.google.com:19302' },{url: 'stun:stun.services.mozilla.com'},]
         };
+
         myConnection = new RTCPeerConnection(configuration);
         console.log('RTCPeerConnection object was created');
-        console.log(myConnection);
 
         dataChannel = myConnection.createDataChannel('whtbrd', {
             ordered: false, // do not guarantee order
@@ -29,7 +27,6 @@ firebase.auth().onAuthStateChanged((user) => {
             if (event.candidate) {
                 console.log('SENDING ICE');
                 fbCon.child(roomId).child('negotiation').child('ice').set({ sender: sessionId, message: JSON.stringify({ice: event.candidate })});
-
             }
         };
 
@@ -40,23 +37,27 @@ firebase.auth().onAuthStateChanged((user) => {
                 .then(() => sendOffer(sessionId, JSON.stringify({'sdp': myConnection.localDescription})) );
         }
 
-        dataChannel.onopen = function () {
-            console.log('Hello World!');
-        };
 
         fbCon.child(roomId).child('negotiation').child('offer').on('value', readMessage);
         fbCon.child(roomId).child('negotiation').child('ice').on('value', readMessage);
+
+
+        dataChannel.onopen = function () {
+            //global in draw.js
+            console.log('open')
+            isConnected = true;
+        };
+
+        dataChannel.onmessage = function (event) {
+            console.log('ERGH!');
+            console.log("received: " + event.data);
+        };
 
 
     } else {
         // Do stuff if they inputted an invalid room or fb is down
     }
 });
-
-
-
-
-
 
 function sendOffer(sessionId, data) {
     fbCon.child(roomId).child('negotiation').child('offer').set({ sender: sessionId, message: data });
