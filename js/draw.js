@@ -6,26 +6,23 @@ let isDown = false;
 let cvSave;
 
 //globals for the networking
-let myConnection;
+let uid;
 let fbCon;
 let sessionId;
-let dataChannel;      //TODO: make sure these all need to be global
-let isConnected = false;
-const roomId = extractQueryString('roomId');
-let packetNum = 0;
-
-
+let roomId = extractQueryString('roomId');
+let prevCanvas;
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
 function init() {
 
-    //initialize p2p exchange
-    rtcInit(roomId);
-
+    //initialize exchange
+    connect(roomId);
     //initlaize canvas elements
     canvas = document.getElementById('myCanvas');
     ctx = canvas.getContext('2d');
-    console.log('here');
+    ctx.strokeStyle = 'black';
+    ctx.fillStyle = 'black'
+    prevCanvas = ctx.getImageData(0, 0, canvas.width, canvas.height);
     //event listeners (asynchronous programming)
 
     //executes whenever mouse comes clicks on canvas
@@ -47,39 +44,51 @@ function init() {
     canvas.addEventListener('mouseout', (e) => { //arrow callback function
         handleMouseEvent('out',e);
     }, false);
+
 }
 
 function handleMouseEvent(key,e) {
-    switch(key) {
-        case 'down': {
-            prevX = e.clientX - canvas.offsetLeft;
-            prevY = e.clientY - canvas.offsetTop;
-            ctx.moveTo(prevX,prevY);
-            dotMeUpBrotendo();
-            isDown = true;
-            break;
-        }
-        case 'move': {
-            if (isDown) {
-                const currX = e.clientX - canvas.offsetLeft;
-                const currY = e.clientY - canvas.offsetTop;
-                draw(currX, currY);
+    if (fbCon){
+        switch(key) {
+            case 'down': {
+                prevX = e.clientX - canvas.offsetLeft;
+                prevY = e.clientY - canvas.offsetTop;
+                ctx.moveTo(prevX,prevY);
+                dotMeUpBrotendo();
+                isDown = true;
+                break;
             }
-            break;
+
+            case 'move': {
+                if (isDown) {
+                    const currX = e.clientX - canvas.offsetLeft;
+                    const currY = e.clientY - canvas.offsetTop;
+                    draw(currX, currY);
+                }
+                break;
+            }
+
+            case 'up' : {
+                let diffsToPush = collectDiffs();
+                sendToFB(ctx.fillStyle, diffsToPush);
+                isDown = false;
+            }
         }
-    }
-    if (key === 'out' || key === 'up') {
-        isDown = false;
+
+        if (key === 'out' && isDown) {
+            let diffsToPush = collectDiffs();
+            sendToFB(ctx.fillStyle, diffsToPush);
+            isDown = false;
+        }
     }
 }
 
 //draws a dot if you click
 function dotMeUpBrotendo() {
     ctx.beginPath();
-    ctx.fillRect(prevX, prevY, 2, 2);
+    ctx.fillRect(prevX, prevY, 1, 1);
     ctx.closePath();
-    cvSave = ctx.getImageData(0,0,canvas.width, canvas.height);
-    sendCanvasData(cvSave);
+    //cvSave = ctx.getImageData(0,0,canvas.width, canvas.height);
 }
 
 function draw(currX,currY) {
@@ -87,147 +96,95 @@ function draw(currX,currY) {
     ctx.stroke();
     prevX = currX;
     prevY = currY;
-    cvSave = ctx.getImageData(0,0,canvas.width, canvas.height);
-    sendCanvasData(cvSave);
+    //cvSave = ctx.getImageData(0,0,canvas.width, canvas.height);
 }
 
-//if datachannel is initialized, send canvas data
-function sendCanvasData(cvSave) {
-    if (isConnected) {
-        const packets = chunkify(cvSave.data,16000); //16kb size or less
-        dataChannel.send();
+function collectDiffs() {
+    let currCanvas = ctx.getImageData(0,0, canvas.width, canvas.height);
+    let tempList = [];
+    for (let i = 0; i < currCanvas.data.length; i++ ) {
+        if (prevCanvas.data[i] !== currCanvas.data[i]) {
+            tempList.push(i)
+        }
+    }
+
+    if (ctx.fillStyle !== '#000000') { //if its not black
+        return tempList.filter((element, index) => { // filter out the alpha component because it can be computed client side
+            return index % 2 === 0;
+        })
+    } else {
+        return tempList
     }
 }
 
-function chunkify(cvSave, size) {
-    //each packet begins with 5 byte digit ID, 4 bytes for pkt #, 2 bytes for packet index
-    let numChuncks = cvSave.length / size;
-    let metaData = new Uint8ClampedArray(11);
+// networking -------------------------------------------------
 
-    //turning sessionId and numPacket into an array
-    let insertArray = [];
-    insertArray.concat(numToArray(sessionId));
-    insertArray.concat(numToArray(packetNum));
-    packetNum += 1;
 
-    let bot = 0;
-    let returnPackets = [];
-    for (let i = 0; i < numChuncks; i++ ) {
-        let buffer = cvSave.slice(bot, bot + size);
-        insertArray.push(i);
-        returnPackets.push(prependPacketInfo(metaData.set(insertArray),buffer));
-        bot = (bot + size) + 1;
+function sendToFB(hex, diffsToPush) {
+    switch(hex) {
+        case '#ff0000': {
+            fbCon.child(roomId).child('diffs').push({'R' : diffsToPush});
+            break;
+        }
+        case  '#000000': {
+            fbCon.child(roomId).child('diffs').push({'K' : diffsToPush});
+            break;
+        }
+        case '#0000ff' : {
+            fbCon.child(roomId).child('diffs').push({'B' : diffsToPush});
+            break;
+        }
+        default : {
+            fbCon.child(roomId).child('diffs').push({'G' : diffsToPush});
+            break;
+        }
     }
-
 }
 
 
-function prependPacketInfo(buff1,buff2) {
-    let tmp = new Uint8ClampedArray( buff1.byteLength + buff2.byteLength );
-    tmp.set( new Uint8ClampedArray( buff1 ), 0 );
-    tmp.set( new Uint8ClampedArray( buff2 ), buff1.byteLength );
-    return tmp;
-}
 
-function numToArray(num) {
-    let temp = [];
-    for (let i = 0, len = num.toString().length; i < len; i += 1) {
-        temp.push(+sessionId.toString().charAt(i));
-    }
-    return temp;
-}
-
-// RTC-networking -------------------------------------------------
-
-function rtcInit(roomId) {
+function connect(roomId) {
     firebase.auth().onAuthStateChanged((user) => {
         if (user && roomId){
             // User is signed in.
+            console.log('connected');
             const isAnonymous = user.isAnonymous;
-            const uid = user.uid;
-            sessionId = Math.floor(Math.random()*100000);
+            uid = user.uid;
             fbCon = firebase.database().ref();
-            const configuration = {
-                iceServers: [{ url: 'stun:stun.1.google.com:19302' },{url: 'stun:stun.services.mozilla.com'},]
-            };
 
-            myConnection = new RTCPeerConnection(configuration);
-            console.log('RTCPeerConnection object was created');
+            fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
+                snapshot.forEach( (child) => {
+                    setTimeout(drawPixels(child.key,child.val()), 5)
+                } );
 
-            dataChannel = myConnection.createDataChannel('whtbrd', {
-                ordered: false, // do not guarantee order
-                maxRetransmitTime: 3000, // in milliseconds
             });
-
-            myConnection.onicecandidate = function (event) {
-                if (event.candidate) {
-                    console.log('SENDING ICE');
-                    fbCon.child(roomId).child('negotiation').child('ice').set({ sender: sessionId, message: JSON.stringify({ice: event.candidate })});
-                }
-            };
-
-            if (extractQueryString('init') ===  '1') initalizeExchange();
-
-
-            fbCon.child(roomId).child('negotiation').child('offer').on('value', readMessage);
-            fbCon.child(roomId).child('negotiation').child('ice').on('value', readMessage);
-
-
-            dataChannel.onopen = function () {
-                console.log('connection open');
-                isConnected = true;
-                //TODO: clear the canvas here.
-            };
-            dataChannel.onclose = function() {
-                console.log('connection closed');
-            }
-
-            myConnection.ondatachannel = function(ev) {
-                const receiveChannel = ev.channel;
-                receiveChannel.onmessage = function (event) {
-                    console.log(typeof(event.data));
-                    ctx.putImageData(event.data,0,0);
-                };
-            };
-
-
         } else {
-            // Do stuff if they inputted an invalid room or fb is down
+            //TODO Do stuff jif they inputted an invalid room or fb is down
         }
     });
 }
 
-function initalizeExchange() {
-    console.log('creating offer');
-    myConnection.createOffer()
-        .then(offer => myConnection.setLocalDescription(offer) )
-        .then(() => sendOffer(sessionId, JSON.stringify({'sdp': myConnection.localDescription})) );
-}
+function drawPixels(key, diffs) {
 
-function sendOffer(sessionId, data) {
-    fbCon.child(roomId).child('negotiation').child('offer').set({ sender: sessionId, message: data });
-}
+    let rawImage = ctx.getImageData(0,0, canvas.width, canvas.height);
 
-function readMessage(data) {
-    const msg = JSON.parse(data.val().message);
-    const sender = data.val().sender;
-    if (sender !== sessionId) {
-        if (msg.ice !== undefined){
-            console.log('received ICE');
-            myConnection.addIceCandidate(new RTCIceCandidate(msg.ice));
-            console.log('added ice candidate');
-        } else if (msg.sdp.type === 'offer') {
-            myConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp))
-                .then(() => myConnection.createAnswer())
-                .then(answer => myConnection.setLocalDescription(answer))
-                .then(() => sendOffer(sessionId, JSON.stringify({'sdp': myConnection.localDescription})));
-            console.log('sending answer')
-        } else if (msg.sdp.type === 'answer'){
-            console.log('received answer')
-            myConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-            //initalizeExchange();
+    for (let i = 0; i < diffs.length; i++) {
+        if (key === 'G' ) {
+            rawImage.data[diffs[i]] = 137;
+            rawImage.data[ diffs[i ] + 2 ] = 255;
+        } else if (key === 'B') {
+            console.log('drawing blues');
+            rawImage.data[ diffs[i] ] = 255;
+            rawImage.data[ diffs[i] + 1 ] = 255;
+        } else if (key === 'R') {
+            rawImage.data[ diffs[i] ] = 255;
+            rawImage.data[ diffs[i ] + 3 ] = 255;
+        } else {
+            rawImage.data[ diffs[i] ] = 255;
         }
     }
+    ctx.putImageData(rawImage, 0, 0)
+    prevCanvas =  ctx.getImageData(0,0, canvas.width, canvas.height);
 }
 
 function extractQueryString(name) {
