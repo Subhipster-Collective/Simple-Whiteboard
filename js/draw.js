@@ -20,8 +20,7 @@ function init() {
     //initlaize canvas elements
     canvas = document.getElementById('myCanvas');
     ctx = canvas.getContext('2d');
-    ctx.strokeStyle = 'black';
-    ctx.fillStyle = 'black'
+
     prevCanvas = ctx.getImageData(0, 0, canvas.width, canvas.height);
     //event listeners (asynchronous programming)
 
@@ -44,6 +43,31 @@ function init() {
     canvas.addEventListener('mouseout', (e) => { //arrow callback function
         handleMouseEvent('out',e);
     }, false);
+
+
+    // color changing events ------------------------------------------------
+
+
+    document.getElementsByClassName('button red')[0].addEventListener( "click", (e) => {
+        ctx.strokeStyle = 'red';
+        ctx.fillStyle = 'red';
+    });
+    document.getElementsByClassName('button black')[0].addEventListener( 'click', (e) => {
+        ctx.strokeStyle = 'black';
+        ctx.fillStyle = 'black';
+    });
+    document.getElementsByClassName('button green')[0].addEventListener( 'click' , (e) => {
+        ctx.strokeStyle = 'green';
+        ctx.fillStyle = 'green';
+    });
+    document.getElementsByClassName('button blue')[0].addEventListener( 'click' , (e) => {
+        ctx.strokeStyle = 'blue';
+        ctx.fillStyle = 'blue';
+    });
+
+
+
+
 
 }
 
@@ -152,6 +176,7 @@ function connect(roomId) {
             uid = user.uid;
             fbCon = firebase.database().ref();
 
+
             fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
                 snapshot.forEach( (child) => {
                     setTimeout(drawPixels(child.key,child.val()), 5)
@@ -159,7 +184,6 @@ function connect(roomId) {
 
             });
         } else {
-            //TODO Do stuff jif they inputted an invalid room or fb is down
         }
     });
 }
@@ -173,7 +197,6 @@ function drawPixels(key, diffs) {
             rawImage.data[diffs[i]] = 137;
             rawImage.data[ diffs[i ] + 2 ] = 255;
         } else if (key === 'B') {
-            console.log('drawing blues');
             rawImage.data[ diffs[i] ] = 255;
             rawImage.data[ diffs[i] + 1 ] = 255;
         } else if (key === 'R') {

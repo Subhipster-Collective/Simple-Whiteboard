@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <html>
+    <head>
+        <link rel="stylesheet" type="text/css" href="css/style.css">
+    </head>
     <script src="https://www.gstatic.com/firebasejs/4.6.2/firebase.js"></script>
     <script>
         // Initialize Firebase
@@ -25,8 +28,14 @@
 
     <body onload="init()">
             <canvas id="myCanvas" width="1200" height="600"
-                style="position:absolute;top:10%;left:10%;border:2px solid;">
+                style="position:absolute;top:10%;left:18%;border:2px solid;">
             </canvas>
+            <div id = 'color-picker'>
+                <div class = 'button red' > </div>
+                <div class = 'button blue'> </div>
+                <div class = 'button green'> </div>
+                <div class = 'button black'> </div>
+            </div>
     </body>
 
 </html>
