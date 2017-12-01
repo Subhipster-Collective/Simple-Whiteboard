@@ -6,7 +6,7 @@
 let canvas, ctx;
 let prevCanvas, prevCtx;
 let isDown = false;
-let maxWidth, minWidth, maxHeight, minHeight;
+const modifiedArea = {};
 
 //globals for the networking
 let uid;
@@ -28,22 +28,22 @@ function init() {
 
     //executes whenever mouse comes clicks on canvas
     canvas.addEventListener('mousedown', (e) => { //arrow callback function
-        handleMouseEvent('down',e);
+        handleMouseEvent('down', e);
     }, false);
 
     //executes whenever mouse moves over canvas
     canvas.addEventListener('mousemove', (e) => { //arrow callback function
-        handleMouseEvent('move',e);
+        handleMouseEvent('move', e);
     }, false);
 
     //executes whenver mouse lifts off canvas.
     canvas.addEventListener('mouseup', (e) => { //arrow callback function
-        handleMouseEvent('up',e);
+        handleMouseEvent('up', e);
     }, false);
 
     //executes whenever mouse goes out of canvas bounds
     canvas.addEventListener('mouseout', (e) => { //arrow callback function
-        handleMouseEvent('out',e);
+        handleMouseEvent('out', e);
     }, false);
 
 
@@ -78,11 +78,11 @@ function handleMouseEvent(key, e) {
                 const currX = e.clientX - canvas.offsetLeft;
                 const currY = e.clientY - canvas.offsetTop;
 
-                maxWidth = currX;
-                minWidth = currX;
+                modifiedArea.maxWidth = currX;
+                modifiedArea.minWidth = currX;
 
-                minHeight = currY;
-                maxHeight = currY;
+                modifiedArea.minHeight = currY;
+                modifiedArea.maxHeight = currY;
 
                 dotMeUpBrotendo(currX,currY);
                 isDown = true;
@@ -105,7 +105,7 @@ function handleMouseEvent(key, e) {
 
         if ( key === 'up' || (key === 'out' && isDown)) {
             const diffsToPush = collectDiffs();
-            sendToFB(ctx.fillStyle, diffsToPush);
+            sendToFB(diffsToPush, ctx.fillStyle.substring(1));
             isDown = false;
         }
     }
@@ -127,8 +127,8 @@ function draw(currX,currY) {
 }
 
 function collectDiffs() {
-    const currCanvas = ctx.getImageData(minWidth,minHeight, maxWidth, maxHeight);
-    const formerCanvas = prevCtx.getImageData(minWidth,minHeight, maxWidth, maxHeight);
+    const currCanvas = ctx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
+    const formerCanvas = prevCtx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
     const tempList = [];
     for (let i = 0; i < currCanvas.data.length; i++ ) {
         if (formerCanvas.data[i] !== currCanvas.data[i]) {
@@ -139,41 +139,28 @@ function collectDiffs() {
 }
 
 function updateRectangle(currX,currY) {
-    if (currX < minWidth) minWidth = currX;
-    else if (currX > maxWidth) maxWidth = currX;
+    if (currX < modifiedArea.minWidth)
+        modifiedArea.minWidth = currX;
+    else if (currX > modifiedArea.maxWidth)
+        modifiedArea.maxWidth = currX;
 
-    if (currY < minHeight) minHeight = currY;
-    else if (currY > maxHeight) maxHeight = currY;
+    if (currY < modifiedArea.minHeight)
+        modifiedArea.minHeight = currY;
+    else if (currY > modifiedArea.maxHeight)
+        modifiedArea.maxHeight = currY;
 
 }
 
 // networking -------------------------------------------------
 
 
-function sendToFB(hex, diffsToPush) {
-    const pushObj = new Object();
-    switch(hex) {
-        case '#ff0000': {
-            pushObj['R' +':'+  + minWidth  + ',' + maxWidth + ',' + minHeight + ',' + maxHeight] = diffsToPush;
-            fbCon.child(roomId).child('diffs').push(pushObj);
-            break;
+function sendToFB(diffsToPush, color) {
+    fbCon.child(roomId).child('diffs').push({
+        [color]: {
+            coords: diffsToPush,
+            modifiedArea
         }
-        case  '#000000': {
-            pushObj['K' +':'+  + minWidth  + ',' + maxWidth + ',' + minHeight + ',' + maxHeight] = diffsToPush;
-            fbCon.child(roomId).child('diffs').push(pushObj);
-            break;
-        }
-        case '#0000ff' : {
-            pushObj['B' +':'+  + minWidth  + ',' + maxWidth + ',' + minHeight + ',' + maxHeight] = diffsToPush;
-            fbCon.child(roomId).child('diffs').push(pushObj);
-            break;
-        }
-        default : {
-            pushObj['G' +':'+  + minWidth  + ',' + maxWidth + ',' + minHeight + ',' + maxHeight] = diffsToPush;
-            fbCon.child(roomId).child('diffs').push(pushObj);
-            break;
-        }
-    }
+    });
 }
 
 function connect(roomId) {
@@ -188,40 +175,34 @@ function connect(roomId) {
             connectedRef.on('value', (snap) => {
                 if (snap.val() === true) {
                     // We're connected (or reconnected)! Do anything here that should happen only if online (or on reconnect)
-                    let userVal = new Object();
-                    userVal[uid] = true;
-
+                    
                     const userLocation = fbCon.child(roomId).child('users');
-                    userLocation.update(userVal)
+                    userLocation.update({[uid]: true});
 
                     // When I disconnect, remove this device
-                    userVal[uid] = false;
-                    userLocation.onDisconnect().update(userVal);
+                    userLocation.onDisconnect().update({[uid]: false});
                 }
             });
 
-            fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
-                snapshot.forEach( (child) => {
-                    const key = parseLocationKey(child.key);
-                    drawPixels(key[0],key[1],child.val());
-                });
-
-            });
+            fbCon.child(roomId).child('diffs').on('child_added', snapshot => 
+                snapshot.forEach(child =>
+                    drawPixels( child.child('modifiedArea').val(), child.child('coords').val()) )
+            );
         } else {
             console.log('Failed to connect to Firebase.');
         }
     });
 }
 
-function drawPixels(color, rectVals ,diffs) {
-    const rawImage = ctx.getImageData(rectVals[0],rectVals[2], rectVals[1], rectVals[3]);
+function drawPixels(modifiedArea, diffs) {
+    const rawImage = ctx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
 
     for (let i = 0; i < diffs.length; i++) {
         rawImage.data[diffs[i]] = 255;
     }
 
-    ctx.putImageData(rawImage, rectVals[0], rectVals[2]);
-    prevCtx.putImageData(rawImage, rectVals[0], rectVals[2]);
+    ctx.putImageData(rawImage, modifiedArea.minWidth, modifiedArea.minHeight);
+    prevCtx.putImageData(rawImage, modifiedArea.maxWidth, modifiedArea.minHeight);
 }
 
 function cloneCanvas(oldCanvas) {
@@ -238,12 +219,6 @@ function cloneCanvas(oldCanvas) {
 
     //return the new canvas
     return newCanvas;
-}
-
-function parseLocationKey(key) {
-    const parts = key.split(':');
-    parts[1] = parts[1].split(',').map( x => parseInt(x, 10) );
-    return parts;
 }
 
 function extractQueryString(name) {
