@@ -101,7 +101,6 @@ function handleMouseEvent(key,e) {
 
                     updateRectangle(currX, currY);
 
-                    console.log([currX, currY]);
                     draw(currX, currY);
                 }
                 break;
@@ -187,7 +186,7 @@ function connect(roomId) {
     firebase.auth().onAuthStateChanged((user) => {
         if (user && roomId){
             // User is signed in.
-            console.log('connecasdfasdfted');
+            console.log('connected');
             const isAnonymous = user.isAnonymous;
             uid = user.uid;
             fbCon = firebase.database().ref();
@@ -200,7 +199,6 @@ function connect(roomId) {
               if (snap.val() === true) {
 
                 // We're connected (or reconnected)! Do anything here that should happen only if online (or on reconnect)
-
                 test = fbCon.child(roomId).child('users').push(uid);
 
                 // When I disconnect, remove this device
