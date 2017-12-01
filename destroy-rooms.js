@@ -13,9 +13,13 @@ const ref = db.ref(admin.databaseURL);
 
 ref.on('value', (snapshot) => {
         snapshot.forEach( (child) => {
-            if (!child.val().users){
-                ref.child(child.key).set(null);
-                console.log('room destroyed');
+            let destroy = true;
+            let keys = Object.keys(child.val().users)
+            for (let i = 0; i < keys.length; i++) {
+                if (child.val().users[keys[i]] === true) {
+                    destroy = false;
+                }
             }
+            if (destroy) ref.child(child.key).set(null);
         });
 })

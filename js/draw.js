@@ -188,10 +188,15 @@ function connect(roomId) {
             connectedRef.on('value', (snap) => {
                 if (snap.val() === true) {
                     // We're connected (or reconnected)! Do anything here that should happen only if online (or on reconnect)
-                    const test = fbCon.child(roomId).child('users').push(uid);
+                    let userVal = new Object();
+                    userVal[uid] = true;
+
+                    const userLocation = fbCon.child(roomId).child('users');
+                    userLocation.update(userVal)
 
                     // When I disconnect, remove this device
-                    test.onDisconnect().remove();
+                    userVal[uid] = false;
+                    userLocation.onDisconnect().update(userVal);
                 }
             });
 
