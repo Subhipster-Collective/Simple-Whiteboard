@@ -1,8 +1,8 @@
 //globals for the canvas
 let canvas, ctx;
+let prevCanvas, prevCtx;
 let isDown = false;
 let maxWidth, minWidth, maxHeight, minHeight;
-let prevCanvas;
 
 
 //globals for the networking
@@ -20,7 +20,9 @@ function init() {
     canvas = document.getElementById('myCanvas');
     ctx = canvas.getContext('2d');
 
-    prevCanvas = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    prevCanvas = cloneCanvas(canvas);
+    prevCtx = prevCanvas.getContext('2d');
+
     //event listeners (asynchronous programming)
 
     //executes whenever mouse comes clicks on canvas
@@ -83,8 +85,8 @@ function handleMouseEvent(key,e) {
                 maxWidth = currX;
                 minWidth = currX;
 
-                minY = currY;
-                maxY = currY
+                minHeight = currY;
+                maxHeight = currY
 
                 dotMeUpBrotendo(currX,currY);
                 isDown = true;
@@ -130,10 +132,11 @@ function draw(currX,currY) {
 }
 
 function collectDiffs() {
-    let currCanvas = ctx.getImageData(0,0, canvas.width, canvas.height);
+    let currCanvas = ctx.getImageData(minWidth,minHeight, maxWidth, maxHeight);
+    let formerCanvas = prevCtx.getImageData(minWidth,minHeight, maxWidth, maxHeight);
     let tempList = [];
     for (let i = 0; i < currCanvas.data.length; i++ ) {
-        if (prevCanvas.data[i] !== currCanvas.data[i]) {
+        if (formerCanvas.data[i] !== currCanvas.data[i]) {
             tempList.push(i)
         }
     }
@@ -145,28 +148,33 @@ function updateRectangle(currX,currY) {
     else if (currX > maxWidth) maxWidth = currX;
 
     if (currY < minHeight) minHeight = currY;
-    else if (currY > maxHeight) maxHeight = currX=Y;
+    else if (currY > maxHeight) maxHeight = currY;
 
 }
 // networking -------------------------------------------------
 
 
 function sendToFB(hex, diffsToPush) {
+    pushObj = new Object();
     switch(hex) {
         case '#ff0000': {
-            fbCon.child(roomId).child('diffs').push({'R' : diffsToPush});
+            pushObj['R' +':'+  + minWidth  + ',' + maxWidth + ',' + minHeight + ',' + maxHeight] = diffsToPush;
+            fbCon.child(roomId).child('diffs').push(pushObj);
             break;
         }
         case  '#000000': {
-            fbCon.child(roomId).child('diffs').push({'K' : diffsToPush});
+            pushObj['K' +':'+  + minWidth  + ',' + maxWidth + ',' + minHeight + ',' + maxHeight] = diffsToPush;
+            fbCon.child(roomId).child('diffs').push(pushObj);
             break;
         }
         case '#0000ff' : {
-            fbCon.child(roomId).child('diffs').push({'B' : diffsToPush});
+            pushObj['B' +':'+  + minWidth  + ',' + maxWidth + ',' + minHeight + ',' + maxHeight] = diffsToPush;
+            fbCon.child(roomId).child('diffs').push(pushObj);
             break;
         }
         default : {
-            fbCon.child(roomId).child('diffs').push({'G' : diffsToPush});
+            pushObj['G' +':'+  + minWidth  + ',' + maxWidth + ',' + minHeight + ',' + maxHeight] = diffsToPush;
+            fbCon.child(roomId).child('diffs').push(pushObj);
             break;
         }
     }
@@ -182,30 +190,58 @@ function connect(roomId) {
             const isAnonymous = user.isAnonymous;
             uid = user.uid;
             fbCon = firebase.database().ref();
+            fbCon.child(roomId).set(null);
 
 
             fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
                 snapshot.forEach( (child) => {
-                    drawPixels(child.key,child.val());
+                    key = parseLocationKey(child.key);
+                    drawPixels(key[0],key[1],child.val());
                 } );
 
             });
         } else {
+
         }
     });
 }
 
-function drawPixels(key, diffs) {
+function drawPixels(color, rectVals ,diffs) {
 
-    let rawImage = ctx.getImageData(0,0, canvas.width, canvas.height);
+    let rawImage = ctx.getImageData(rectVals[0],rectVals[2], rectVals[1], rectVals[3]);
 
     for (let i = 0; i < diffs.length; i++) {
         rawImage.data[diffs[i]] = 255;
     }
 
-    ctx.putImageData(rawImage, 0, 0)
-    prevCanvas =  ctx.getImageData(0,0, canvas.width, canvas.height);
+    ctx.putImageData(rawImage, rectVals[0], rectVals[2]);
+    prevCtx.putImageData(rawImage, rectVals[0], rectVals[2]);
 }
+
+function cloneCanvas(oldCanvas) {
+
+    //create a new canvas
+    var newCanvas = document.createElement('canvas');
+    var context = newCanvas.getContext('2d');
+
+    //set dimensions
+    newCanvas.width = oldCanvas.width;
+    newCanvas.height = oldCanvas.height;
+
+    //apply the old canvas to the new one
+    context.drawImage(oldCanvas, 0, 0);
+
+    //return the new canvas
+    return newCanvas;
+}
+
+function parseLocationKey(key) {
+    const parts = key.split(':');
+    parts[1] = parts[1].split(',').map( x => parseInt(x) )
+    return parts;
+}
+
+
 
 function extractQueryString(name) {
     const url = window.location.href;
