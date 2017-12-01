@@ -8,7 +8,8 @@ let maxWidth, minWidth, maxHeight, minHeight;
 //globals for the networking
 let uid;
 let fbCon;
-let sessionId;
+let userList;
+let sessionId  = Math.floor(Math.random() * 10000);
 let roomId = extractQueryString('roomId');
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
@@ -186,18 +187,44 @@ function connect(roomId) {
     firebase.auth().onAuthStateChanged((user) => {
         if (user && roomId){
             // User is signed in.
-            console.log('connected');
+            console.log('connecasdfasdfted');
             const isAnonymous = user.isAnonymous;
             uid = user.uid;
             fbCon = firebase.database().ref();
-            fbCon.child(roomId).set(null);
+
+            const userVal = new Object()
+
+
+            var connectedRef = firebase.database().ref('.info/connected');
+            connectedRef.on('value', function(snap) {
+              if (snap.val() === true) {
+
+                // We're connected (or reconnected)! Do anything here that should happen only if online (or on reconnect)
+
+                userVal[sessionId] = true;
+                fbCon.push();
+                test = fbCon.child(roomId).child('users').push(sessionId);
+
+                // When I disconnect, remove this device
+                userVal[sessionId] = false;
+                test.onDisconnect().remove();
+
+                // Add this device to my connections list
+                // this value could contain info about the device or a timestamp too
+
+                // When I disconnect, update the last time I was seen online
+                //lastOnlineRef.onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
+              }
+            });
+
+
 
 
             fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
                 snapshot.forEach( (child) => {
                     key = parseLocationKey(child.key);
                     drawPixels(key[0],key[1],child.val());
-                } );
+                });
 
             });
         } else {
