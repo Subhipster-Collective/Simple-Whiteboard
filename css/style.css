@@ -1,3 +1,6 @@
+body {
+    background-color: lightgray;
+}
 
 #color-picker {
     border: 1px solid black;
@@ -7,6 +10,13 @@
     width: 150px;
 }
 
+.whiteboard {
+    background-color: white;
+    position:absolute;
+    top: 10%;
+    left: 18%;
+    border:2px solid;
+}
 
 .button {
     float: left;

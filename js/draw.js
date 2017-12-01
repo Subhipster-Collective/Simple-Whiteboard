@@ -1,20 +1,21 @@
+/* eslint-env browser */
+/* eslint indent: ["error", 4, { "SwitchCase": 1 }] */
+/* globals firebase */
+
 //globals for the canvas
 let canvas, ctx;
 let prevCanvas, prevCtx;
 let isDown = false;
 let maxWidth, minWidth, maxHeight, minHeight;
 
-
 //globals for the networking
 let uid;
 let fbCon;
-let userList;
-let sessionId  = Math.floor(Math.random() * 10000);
-let roomId = extractQueryString('roomId');
+const sessionId  = Math.floor(Math.random() * 10000);
+const roomId = extractQueryString('roomId');
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
 function init() {
-
     //initialize exchange
     connect(roomId);
     //initlaize canvas elements
@@ -50,7 +51,7 @@ function init() {
     // color changing events ------------------------------------------------
 
 
-    document.getElementsByClassName('button red')[0].addEventListener( "click", (e) => {
+    document.getElementsByClassName('button red')[0].addEventListener( 'click', (e) => {
         ctx.strokeStyle = 'red';
         ctx.fillStyle = 'red';
     });
@@ -69,25 +70,20 @@ function init() {
         ctx.strokeStyle = 'blue';
         ctx.fillStyle = 'blue';
     });
-
-
-
-
-
 }
 
-function handleMouseEvent(key,e) {
+function handleMouseEvent(key, e) {
     if (fbCon){
         switch(key) {
             case 'down': {
-                let currX = e.clientX - canvas.offsetLeft;
-                let currY = e.clientY - canvas.offsetTop;
+                const currX = e.clientX - canvas.offsetLeft;
+                const currY = e.clientY - canvas.offsetTop;
 
                 maxWidth = currX;
                 minWidth = currX;
 
                 minHeight = currY;
-                maxHeight = currY
+                maxHeight = currY;
 
                 dotMeUpBrotendo(currX,currY);
                 isDown = true;
@@ -96,8 +92,8 @@ function handleMouseEvent(key,e) {
 
             case 'move': {
                 if (isDown) {
-                    let currX = e.clientX - canvas.offsetLeft;
-                    let currY = e.clientY - canvas.offsetTop;
+                    const currX = e.clientX - canvas.offsetLeft;
+                    const currY = e.clientY - canvas.offsetTop;
 
                     updateRectangle(currX, currY);
 
@@ -109,7 +105,7 @@ function handleMouseEvent(key,e) {
         }
 
         if ( key === 'up' || (key === 'out' && isDown)) {
-            let diffsToPush = collectDiffs();
+            const diffsToPush = collectDiffs();
             sendToFB(ctx.fillStyle, diffsToPush);
             isDown = false;
         }
@@ -132,15 +128,15 @@ function draw(currX,currY) {
 }
 
 function collectDiffs() {
-    let currCanvas = ctx.getImageData(minWidth,minHeight, maxWidth, maxHeight);
-    let formerCanvas = prevCtx.getImageData(minWidth,minHeight, maxWidth, maxHeight);
-    let tempList = [];
+    const currCanvas = ctx.getImageData(minWidth,minHeight, maxWidth, maxHeight);
+    const formerCanvas = prevCtx.getImageData(minWidth,minHeight, maxWidth, maxHeight);
+    const tempList = [];
     for (let i = 0; i < currCanvas.data.length; i++ ) {
         if (formerCanvas.data[i] !== currCanvas.data[i]) {
-            tempList.push(i)
+            tempList.push(i);
         }
     }
-    return tempList
+    return tempList;
 }
 
 function updateRectangle(currX,currY) {
@@ -151,11 +147,12 @@ function updateRectangle(currX,currY) {
     else if (currY > maxHeight) maxHeight = currY;
 
 }
+
 // networking -------------------------------------------------
 
 
 function sendToFB(hex, diffsToPush) {
-    pushObj = new Object();
+    const pushObj = new Object();
     switch(hex) {
         case '#ff0000': {
             pushObj['R' +':'+  + minWidth  + ',' + maxWidth + ',' + minHeight + ',' + maxHeight] = diffsToPush;
@@ -180,58 +177,43 @@ function sendToFB(hex, diffsToPush) {
     }
 }
 
-
-
 function connect(roomId) {
     firebase.auth().onAuthStateChanged((user) => {
         if (user && roomId){
             // User is signed in.
             console.log('connected');
-            const isAnonymous = user.isAnonymous;
             uid = user.uid;
             fbCon = firebase.database().ref();
 
-            const userVal = new Object()
+            const userVal = new Object();
 
+            const connectedRef = firebase.database().ref('.info/connected');
+            connectedRef.on('value', (snap) => {
+                if (snap.val() === true) {
+                    // We're connected (or reconnected)! Do anything here that should happen only if online (or on reconnect)
+                    const test = fbCon.child(roomId).child('users').push(uid);
 
-            var connectedRef = firebase.database().ref('.info/connected');
-            connectedRef.on('value', function(snap) {
-              if (snap.val() === true) {
-
-                // We're connected (or reconnected)! Do anything here that should happen only if online (or on reconnect)
-                test = fbCon.child(roomId).child('users').push(uid);
-
-                // When I disconnect, remove this device
-                userVal[sessionId] = false;
-                test.onDisconnect().remove();
-
-                // Add this device to my connections list
-                // this value could contain info about the device or a timestamp too
-
-                // When I disconnect, update the last time I was seen online
-                //lastOnlineRef.onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
-              }
+                    // When I disconnect, remove this device
+                    userVal[sessionId] = false;
+                    test.onDisconnect().remove();
+                }
             });
-
-
-
-
+            
             fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
                 snapshot.forEach( (child) => {
-                    key = parseLocationKey(child.key);
+                    const key = parseLocationKey(child.key);
                     drawPixels(key[0],key[1],child.val());
                 });
 
             });
         } else {
-
+            console.log('Failed to connect to Firebase.');
         }
     });
 }
 
 function drawPixels(color, rectVals ,diffs) {
-
-    let rawImage = ctx.getImageData(rectVals[0],rectVals[2], rectVals[1], rectVals[3]);
+    const rawImage = ctx.getImageData(rectVals[0],rectVals[2], rectVals[1], rectVals[3]);
 
     for (let i = 0; i < diffs.length; i++) {
         rawImage.data[diffs[i]] = 255;
@@ -242,10 +224,9 @@ function drawPixels(color, rectVals ,diffs) {
 }
 
 function cloneCanvas(oldCanvas) {
-
     //create a new canvas
-    var newCanvas = document.createElement('canvas');
-    var context = newCanvas.getContext('2d');
+    const newCanvas = document.createElement('canvas');
+    const context = newCanvas.getContext('2d');
 
     //set dimensions
     newCanvas.width = oldCanvas.width;
@@ -260,11 +241,9 @@ function cloneCanvas(oldCanvas) {
 
 function parseLocationKey(key) {
     const parts = key.split(':');
-    parts[1] = parts[1].split(',').map( x => parseInt(x) )
+    parts[1] = parts[1].split(',').map( x => parseInt(x, 10) );
     return parts;
 }
-
-
 
 function extractQueryString(name) {
     const url = window.location.href;
