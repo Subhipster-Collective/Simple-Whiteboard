@@ -11,7 +11,6 @@ let maxWidth, minWidth, maxHeight, minHeight;
 //globals for the networking
 let uid;
 let fbCon;
-const sessionId  = Math.floor(Math.random() * 10000);
 const roomId = extractQueryString('roomId');
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
@@ -185,8 +184,6 @@ function connect(roomId) {
             uid = user.uid;
             fbCon = firebase.database().ref();
 
-            const userVal = new Object();
-
             const connectedRef = firebase.database().ref('.info/connected');
             connectedRef.on('value', (snap) => {
                 if (snap.val() === true) {
@@ -194,11 +191,10 @@ function connect(roomId) {
                     const test = fbCon.child(roomId).child('users').push(uid);
 
                     // When I disconnect, remove this device
-                    userVal[sessionId] = false;
                     test.onDisconnect().remove();
                 }
             });
-            
+
             fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
                 snapshot.forEach( (child) => {
                     const key = parseLocationKey(child.key);
