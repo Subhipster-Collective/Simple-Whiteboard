@@ -201,9 +201,7 @@ function connect(roomId) {
 
                 // We're connected (or reconnected)! Do anything here that should happen only if online (or on reconnect)
 
-                userVal[sessionId] = true;
-                fbCon.push();
-                test = fbCon.child(roomId).child('users').push(sessionId);
+                test = fbCon.child(roomId).child('users').push(uid);
 
                 // When I disconnect, remove this device
                 userVal[sessionId] = false;
