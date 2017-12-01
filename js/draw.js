@@ -1,16 +1,15 @@
 //globals for the canvas
 let canvas, ctx;
-let prevX = 0;
-let prevY = 0;
 let isDown = false;
-let cvSave;
+let maxWidth, minWidth, maxHeight, minHeight;
+let prevCanvas;
+
 
 //globals for the networking
 let uid;
 let fbCon;
 let sessionId;
 let roomId = extractQueryString('roomId');
-let prevCanvas;
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
 function init() {
@@ -52,14 +51,17 @@ function init() {
         ctx.strokeStyle = 'red';
         ctx.fillStyle = 'red';
     });
+
     document.getElementsByClassName('button black')[0].addEventListener( 'click', (e) => {
         ctx.strokeStyle = 'black';
         ctx.fillStyle = 'black';
     });
+
     document.getElementsByClassName('button green')[0].addEventListener( 'click' , (e) => {
-        ctx.strokeStyle = 'green';
-        ctx.fillStyle = 'green';
+        ctx.strokeStyle = '#00ff00';
+        ctx.fillStyle = '#00ff00';
     });
+
     document.getElementsByClassName('button blue')[0].addEventListener( 'click' , (e) => {
         ctx.strokeStyle = 'blue';
         ctx.fillStyle = 'blue';
@@ -75,31 +77,36 @@ function handleMouseEvent(key,e) {
     if (fbCon){
         switch(key) {
             case 'down': {
-                prevX = e.clientX - canvas.offsetLeft;
-                prevY = e.clientY - canvas.offsetTop;
-                ctx.moveTo(prevX,prevY);
-                dotMeUpBrotendo();
+                let currX = e.clientX - canvas.offsetLeft;
+                let currY = e.clientY - canvas.offsetTop;
+
+                maxWidth = currX;
+                minWidth = currX;
+
+                minY = currY;
+                maxY = currY
+
+                dotMeUpBrotendo(currX,currY);
                 isDown = true;
                 break;
             }
 
             case 'move': {
                 if (isDown) {
-                    const currX = e.clientX - canvas.offsetLeft;
-                    const currY = e.clientY - canvas.offsetTop;
+                    let currX = e.clientX - canvas.offsetLeft;
+                    let currY = e.clientY - canvas.offsetTop;
+
+                    updateRectangle(currX, currY);
+
+                    console.log([currX, currY]);
                     draw(currX, currY);
                 }
                 break;
             }
 
-            case 'up' : {
-                let diffsToPush = collectDiffs();
-                sendToFB(ctx.fillStyle, diffsToPush);
-                isDown = false;
-            }
         }
 
-        if (key === 'out' && isDown) {
+        if ( key === 'up' || (key === 'out' && isDown)) {
             let diffsToPush = collectDiffs();
             sendToFB(ctx.fillStyle, diffsToPush);
             isDown = false;
@@ -108,9 +115,10 @@ function handleMouseEvent(key,e) {
 }
 
 //draws a dot if you click
-function dotMeUpBrotendo() {
+function dotMeUpBrotendo(currX, currY) {
+    ctx.moveTo(currX,currY);
     ctx.beginPath();
-    ctx.fillRect(prevX, prevY, 1, 1);
+    ctx.fillRect(currX, currY, 1, 1);
     ctx.closePath();
     //cvSave = ctx.getImageData(0,0,canvas.width, canvas.height);
 }
@@ -118,8 +126,6 @@ function dotMeUpBrotendo() {
 function draw(currX,currY) {
     ctx.lineTo(currX,currY);
     ctx.stroke();
-    prevX = currX;
-    prevY = currY;
     //cvSave = ctx.getImageData(0,0,canvas.width, canvas.height);
 }
 
@@ -131,16 +137,17 @@ function collectDiffs() {
             tempList.push(i)
         }
     }
-
-    if (ctx.fillStyle !== '#000000') { //if its not black
-        return tempList.filter((element, index) => { // filter out the alpha component because it can be computed client side
-            return index % 2 === 0;
-        })
-    } else {
-        return tempList
-    }
+    return tempList
 }
 
+function updateRectangle(currX,currY) {
+    if (currX < minWidth) minWidth = currX;
+    else if (currX > maxWidth) maxWidth = currX;
+
+    if (currY < minHeight) minHeight = currY;
+    else if (currY > maxHeight) maxHeight = currX=Y;
+
+}
 // networking -------------------------------------------------
 
 
@@ -179,7 +186,7 @@ function connect(roomId) {
 
             fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
                 snapshot.forEach( (child) => {
-                    setTimeout(drawPixels(child.key,child.val()), 5)
+                    drawPixels(child.key,child.val());
                 } );
 
             });
@@ -193,19 +200,9 @@ function drawPixels(key, diffs) {
     let rawImage = ctx.getImageData(0,0, canvas.width, canvas.height);
 
     for (let i = 0; i < diffs.length; i++) {
-        if (key === 'G' ) {
-            rawImage.data[diffs[i]] = 137;
-            rawImage.data[ diffs[i ] + 2 ] = 255;
-        } else if (key === 'B') {
-            rawImage.data[ diffs[i] ] = 255;
-            rawImage.data[ diffs[i] + 1 ] = 255;
-        } else if (key === 'R') {
-            rawImage.data[ diffs[i] ] = 255;
-            rawImage.data[ diffs[i ] + 3 ] = 255;
-        } else {
-            rawImage.data[ diffs[i] ] = 255;
-        }
+        rawImage.data[diffs[i]] = 255;
     }
+
     ctx.putImageData(rawImage, 0, 0)
     prevCanvas =  ctx.getImageData(0,0, canvas.width, canvas.height);
 }
