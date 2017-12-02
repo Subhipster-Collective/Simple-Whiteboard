@@ -7,7 +7,7 @@ body {
     margin: auto;
     margin-top: 30px;
     height: 40px;
-    width: 150px;
+    width: 185px;
 }
 
 .whiteboard {
@@ -35,6 +35,10 @@ body {
 
  .green {
      background-color: green;
+ }
+ 
+ .yellow {
+     background-color: yellow;
  }
 
  .black {

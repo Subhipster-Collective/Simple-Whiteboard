@@ -69,6 +69,11 @@ function init() {
         ctx.strokeStyle = 'blue';
         ctx.fillStyle = 'blue';
     });
+
+    document.getElementsByClassName('button yellow')[0].addEventListener( 'click' , (e) => {
+        ctx.strokeStyle = 'yellow';
+        ctx.fillStyle = 'yellow';
+    });
 }
 
 function handleMouseEvent(key, e) {
@@ -104,8 +109,8 @@ function handleMouseEvent(key, e) {
         }
 
         if ( key === 'up' || (key === 'out' && isDown)) {
-            const diffsToPush = collectDiffs();
-            sendToFB(diffsToPush, ctx.fillStyle.substring(1));
+            const coords = collectDiff();
+            sendToFB(coords);
             isDown = false;
         }
     }
@@ -126,16 +131,38 @@ function draw(currX,currY) {
     //cvSave = ctx.getImageData(0,0,canvas.width, canvas.height);
 }
 
-function collectDiffs() {
+function collectDiff() {
     const currCanvas = ctx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
     const formerCanvas = prevCtx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
-    const tempList = [];
+    /*const tempList = [];
     for (let i = 0; i < currCanvas.data.length; i++ ) {
         if (formerCanvas.data[i] !== currCanvas.data[i]) {
             tempList.push(i);
         }
+    }*/
+    
+    const coords = {};
+    for(let i = 0; i < currCanvas.data.length; i += 4) {
+        if(   formerCanvas.data[i] !== currCanvas.data[i]
+           || formerCanvas.data[i+1] !== currCanvas.data[i+1]
+           || formerCanvas.data[i+2] !== currCanvas.data[i+2]
+           || formerCanvas.data[i+3] !== currCanvas.data[i+3]) {
+            const color = rgbComponentToHex(currCanvas.data[i])
+                        + rgbComponentToHex(currCanvas.data[i+1])
+                        + rgbComponentToHex(currCanvas.data[i+2]);
+            if(!coords.hasOwnProperty(color))
+                coords[color] = [];
+            coords[color].push(i/4);
+        }
     }
-    return tempList;
+    
+    return coords;
+}
+
+function rgbComponentToHex(component)
+{
+    const hex = component.toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
 }
 
 function updateRectangle(currX,currY) {
@@ -154,13 +181,14 @@ function updateRectangle(currX,currY) {
 // networking -------------------------------------------------
 
 
-function sendToFB(diffsToPush, color) {
-    fbCon.child(roomId).child('diffs').push({
+function sendToFB(coords) {
+    /*fbCon.child(roomId).child('diffs').push({
         [color]: {
-            coords: diffsToPush,
+            coords,
             modifiedArea
         }
-    });
+    });*/
+    fbCon.child(roomId).child('diffs').push({coords, modifiedArea});
 }
 
 function connect(roomId) {
@@ -184,25 +212,37 @@ function connect(roomId) {
                 }
             });
 
-            fbCon.child(roomId).child('diffs').on('child_added', snapshot => 
-                snapshot.forEach(child =>
-                    drawPixels( child.child('modifiedArea').val(), child.child('coords').val()) )
-            );
+            fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
+                const modifiedArea = snapshot.child('modifiedArea').val();
+                snapshot.child('coords').forEach(child =>
+                    //drawPixels( child.child('modifiedArea').val(), child.child('coords').val()) )
+                    drawPixels(child, modifiedArea));
+            });
         } else {
             console.log('Failed to connect to Firebase.');
         }
     });
 }
 
-function drawPixels(modifiedArea, diffs) {
+function drawPixels(diff, modifiedArea) {
     const rawImage = ctx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
-
-    for (let i = 0; i < diffs.length; i++) {
-        rawImage.data[diffs[i]] = 255;
+    console.log(modifiedArea);
+    
+    const red = parseInt(diff.key.substring(0, 2), 16);
+    const green = parseInt(diff.key.substring(2, 4), 16);
+    const blue = parseInt(diff.key.substring(4, 6), 16);
+    
+    for(const coord of diff.val()) {
+        console.log(coord);
+        const canvasIndex = coord * 4;
+        rawImage.data[canvasIndex] = red;
+        rawImage.data[canvasIndex+1] = green;
+        rawImage.data[canvasIndex+2] = blue;
+        rawImage.data[canvasIndex+3] = 255;
     }
 
     ctx.putImageData(rawImage, modifiedArea.minWidth, modifiedArea.minHeight);
-    prevCtx.putImageData(rawImage, modifiedArea.maxWidth, modifiedArea.minHeight);
+    prevCtx.putImageData(rawImage, modifiedArea.minWidth, modifiedArea.minHeight);
 }
 
 function cloneCanvas(oldCanvas) {
