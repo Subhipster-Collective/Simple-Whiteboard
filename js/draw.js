@@ -147,7 +147,7 @@ function collectDiff() {
             const color = rgbToInt({red: currCanvas.data[i], green: currCanvas.data[i+1], blue: currCanvas.data[i+2]});
             if(!coords.hasOwnProperty(color))
                 coords[color] = [];
-            coords[color].push(i/4);
+            coords[color].push(i);
         }
     }
     
@@ -210,11 +210,10 @@ function drawPixels(diff, modifiedArea) {
     const color = intToRgb(diff.key);
     
     for(const coord of diff.val()) {
-        const canvasIndex = coord * 4;
-        rawImage.data[canvasIndex] = color.red;
-        rawImage.data[canvasIndex+1] = color.green;
-        rawImage.data[canvasIndex+2] = color.blue;
-        rawImage.data[canvasIndex+3] = 255;
+        rawImage.data[coord] = color.red;
+        rawImage.data[coord+1] = color.green;
+        rawImage.data[coord+2] = color.blue;
+        rawImage.data[coord+3] = 255;
     }
 
     ctx.putImageData(rawImage, modifiedArea.minWidth, modifiedArea.minHeight);
