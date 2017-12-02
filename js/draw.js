@@ -1,6 +1,7 @@
 /* eslint-env browser */
 /* eslint indent: ["error", 4, { "SwitchCase": 1 }] */
 /* globals firebase */
+/*eslint no-fallthrough: ["error", { "commentPattern": "break omitted" }]*/
 
 //constants used to simulate bit shifts
 // k * SHIFT_8 = k<<8
@@ -17,7 +18,7 @@ const modifiedArea = {};
 
 //globals for the networking
 let uid;
-let fbCon;
+let fbCon, boards, users;
 const roomId = extractQueryString('roomId');
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
@@ -32,24 +33,16 @@ function init() {
     prevCtx = prevCanvas.getContext('2d');
 
     //executes whenever mouse comes clicks on canvas
-    canvas.addEventListener('mousedown', (e) => { //arrow callback function
-        handleMouseEvent('down', e);
-    }, false);
+    canvas.addEventListener('mousedown', e => handleMouseEvent(e), false);
 
     //executes whenever mouse moves over canvas
-    canvas.addEventListener('mousemove', (e) => { //arrow callback function
-        handleMouseEvent('move', e);
-    }, false);
+    canvas.addEventListener('mousemove', e => handleMouseEvent(e), false);
 
     //executes whenver mouse lifts off canvas.
-    canvas.addEventListener('mouseup', (e) => { //arrow callback function
-        handleMouseEvent('up', e);
-    }, false);
+    canvas.addEventListener('mouseup', e => handleMouseEvent(e), false);
 
     //executes whenever mouse goes out of canvas bounds
-    canvas.addEventListener('mouseout', (e) => { //arrow callback function
-        handleMouseEvent('out', e);
-    }, false);
+    canvas.addEventListener('mouseout', e => handleMouseEvent(e), false);
 
 
     //color changing events ------------------------------------------------
@@ -81,25 +74,24 @@ function init() {
     });
 }
 
-function handleMouseEvent(key, e) {
-    if (fbCon){
-        switch(key) {
-            case 'down': {
+function handleMouseEvent(e) {
+    if(fbCon) {
+        switch(e.type) {
+            case 'mousedown': {
                 const currX = e.clientX - canvas.offsetLeft;
                 const currY = e.clientY - canvas.offsetTop;
 
-                modifiedArea.maxWidth = currX;
-                modifiedArea.minWidth = currX;
+                modifiedArea.maxX = currX;
+                modifiedArea.minX = currX;
 
-                modifiedArea.minHeight = currY;
-                modifiedArea.maxHeight = currY;
+                modifiedArea.minY = currY;
+                modifiedArea.maxY = currY;
 
                 dotMeUpBrotendo(currX,currY);
                 isDown = true;
                 break;
             }
-
-            case 'move': {
+            case 'mousemove': {
                 if (isDown) {
                     const currX = e.clientX - canvas.offsetLeft;
                     const currY = e.clientY - canvas.offsetTop;
@@ -110,13 +102,18 @@ function handleMouseEvent(key, e) {
                 }
                 break;
             }
-
-        }
-
-        if ( key === 'up' || (key === 'out' && isDown)) {
-            const coords = collectDiff();
-            sendToFB(coords);
-            isDown = false;
+            case 'mouseout': {
+                if(!isDown) {
+                    break;
+                }
+            }
+            //break omitted
+            case 'mouseup': {
+                const coords = collectDiff();
+                sendToFB(coords);
+                isDown = false;
+                break;
+            }
         }
     }
 }
@@ -135,8 +132,16 @@ function draw(currX,currY) {
 }
 
 function collectDiff() {
-    const currCanvas = ctx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
-    const formerCanvas = prevCtx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
+    const currCanvas = ctx.getImageData(
+        modifiedArea.minX,
+        modifiedArea.minY,
+        modifiedArea.maxX - modifiedArea.minX,
+        modifiedArea.maxY - modifiedArea.minY);
+    const formerCanvas = prevCtx.getImageData(
+        modifiedArea.minX,
+        modifiedArea.minY,
+        modifiedArea.maxX - modifiedArea.minX,
+        modifiedArea.maxY - modifiedArea.minY);
     
     const coords = {};
     for(let i = 0; i < currCanvas.data.length; i += 4) {
@@ -155,15 +160,15 @@ function collectDiff() {
 }
 
 function updateRectangle(currX,currY) {
-    if (currX < modifiedArea.minWidth)
-        modifiedArea.minWidth = currX;
-    else if (currX > modifiedArea.maxWidth)
-        modifiedArea.maxWidth = currX;
+    if (currX < modifiedArea.minX)
+        modifiedArea.minX = currX;
+    else if (currX > modifiedArea.maxX)
+        modifiedArea.maxX = currX;
 
-    if (currY < modifiedArea.minHeight)
-        modifiedArea.minHeight = currY;
-    else if (currY > modifiedArea.maxHeight)
-        modifiedArea.maxHeight = currY;
+    if (currY < modifiedArea.minY)
+        modifiedArea.minY = currY;
+    else if (currY > modifiedArea.maxY)
+        modifiedArea.maxY = currY;
 
 }
 
@@ -171,7 +176,7 @@ function updateRectangle(currX,currY) {
 
 
 function sendToFB(coords) {
-    fbCon.child(roomId).child('diffs').push({coords, modifiedArea});
+    boards.child(roomId).child('diffs').push({coords, modifiedArea});
 }
 
 function connect(roomId) {
@@ -181,21 +186,22 @@ function connect(roomId) {
             console.log('connected');
             uid = user.uid;
             fbCon = firebase.database().ref();
+            boards = fbCon.child('boards');
+            users = fbCon.child('users');
 
             const connectedRef = firebase.database().ref('.info/connected');
             connectedRef.on('value', (snap) => {
                 if (snap.val() === true) {
                     // We're connected (or reconnected)! Do anything here that should happen only if online (or on reconnect)
                     
-                    const userLocation = fbCon.child(roomId).child('users');
-                    userLocation.update({[uid]: true});
+                    users.child(roomId).update({[uid]: true});
 
                     // When I disconnect, remove this device
-                    userLocation.onDisconnect().update({[uid]: false});
+                    users.child(roomId).onDisconnect().update({[uid]: false});
                 }
             });
 
-            fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
+            boards.child(roomId).child('diffs').on('child_added', (snapshot) => {
                 const modifiedArea = snapshot.child('modifiedArea').val();
                 snapshot.child('coords').forEach(child => drawPixels(child, modifiedArea));
             });
@@ -205,8 +211,12 @@ function connect(roomId) {
     });
 }
 
-function drawPixels(diff, modifiedArea) {
-    const rawImage = ctx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
+function drawPixels(diff, diffModifiedArea) {
+    const rawImage = ctx.getImageData(
+        diffModifiedArea.minX,
+        diffModifiedArea.minY,
+        diffModifiedArea.maxX - diffModifiedArea.minX,
+        diffModifiedArea.maxY - diffModifiedArea.minY);
     const color = intToRgb(diff.key);
     
     for(const coord of diff.val()) {
@@ -216,8 +226,8 @@ function drawPixels(diff, modifiedArea) {
         rawImage.data[coord+3] = 255;
     }
 
-    ctx.putImageData(rawImage, modifiedArea.minWidth, modifiedArea.minHeight);
-    prevCtx.putImageData(rawImage, modifiedArea.minWidth, modifiedArea.minHeight);
+    ctx.putImageData(rawImage, diffModifiedArea.minX, diffModifiedArea.minY);
+    prevCtx.putImageData(rawImage, diffModifiedArea.minX, diffModifiedArea.minY);
 }
 
 function rgbToInt(color) {
