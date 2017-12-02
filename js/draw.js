@@ -1,7 +1,7 @@
 /* eslint-env browser */
 /* eslint indent: ["error", 4, { "SwitchCase": 1 }] */
 /* globals firebase */
-/*eslint no-fallthrough: ["error", { "commentPattern": "break omitted" }]*/
+/* eslint no-fallthrough: ["error", { "commentPattern": "break omitted" }] */
 
 //constants used to simulate bit shifts
 // k * SHIFT_8 = k<<8
@@ -33,16 +33,16 @@ function init() {
     prevCtx = prevCanvas.getContext('2d');
 
     //executes whenever mouse comes clicks on canvas
-    canvas.addEventListener('mousedown', e => handleMouseEvent(e), false);
+    canvas.addEventListener('mousedown', handleMouseEvent, false);
 
     //executes whenever mouse moves over canvas
-    canvas.addEventListener('mousemove', e => handleMouseEvent(e), false);
+    canvas.addEventListener('mousemove', handleMouseEvent, false);
 
     //executes whenver mouse lifts off canvas.
-    canvas.addEventListener('mouseup', e => handleMouseEvent(e), false);
+    canvas.addEventListener('mouseup', handleMouseEvent, false);
 
     //executes whenever mouse goes out of canvas bounds
-    canvas.addEventListener('mouseout', e => handleMouseEvent(e), false);
+    canvas.addEventListener('mouseout', handleMouseEvent, false);
 
 
     //color changing events ------------------------------------------------
@@ -132,16 +132,10 @@ function draw(currX,currY) {
 }
 
 function collectDiff() {
-    const currCanvas = ctx.getImageData(
-        modifiedArea.minX,
-        modifiedArea.minY,
-        modifiedArea.maxX - modifiedArea.minX,
-        modifiedArea.maxY - modifiedArea.minY);
-    const formerCanvas = prevCtx.getImageData(
-        modifiedArea.minX,
-        modifiedArea.minY,
-        modifiedArea.maxX - modifiedArea.minX,
-        modifiedArea.maxY - modifiedArea.minY);
+    const width = modifiedArea.maxX - modifiedArea.minX;
+    const height = modifiedArea.maxY - modifiedArea.minY;
+    const currCanvas = ctx.getImageData(modifiedArea.minX, modifiedArea.minY, width, height);
+    const formerCanvas = prevCtx.getImageData(modifiedArea.minX, modifiedArea.minY, width, height);
     
     const coords = {};
     for(let i = 0; i < currCanvas.data.length; i += 4) {
