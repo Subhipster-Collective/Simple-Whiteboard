@@ -81,13 +81,13 @@ function handleMouseEvent(e) {
                 const currX = e.clientX - canvas.offsetLeft;
                 const currY = e.clientY - canvas.offsetTop;
 
-                modifiedArea.maxX = currX;
                 modifiedArea.minX = currX;
+                modifiedArea.maxX = currX;
 
                 modifiedArea.minY = currY;
                 modifiedArea.maxY = currY;
 
-                dotMeUpBrotendo(currX,currY);
+                dotMeUpBrotendo(currX, currY);
                 isDown = true;
                 break;
             }
@@ -109,6 +109,10 @@ function handleMouseEvent(e) {
             }
             //break omitted
             case 'mouseup': {
+                modifiedArea.minX -= 5;
+                modifiedArea.maxX += 5;
+                modifiedArea.minY -= 5;
+                modifiedArea.maxY += 5;
                 const coords = collectDiff();
                 sendToFB(coords);
                 isDown = false;
@@ -120,14 +124,14 @@ function handleMouseEvent(e) {
 
 //draws a dot if you click
 function dotMeUpBrotendo(currX, currY) {
-    ctx.moveTo(currX,currY);
+    ctx.moveTo(currX, currY);
     ctx.beginPath();
     ctx.fillRect(currX, currY, 1, 1);
     ctx.closePath();
 }
 
-function draw(currX,currY) {
-    ctx.lineTo(currX,currY);
+function draw(currX, currY) {
+    ctx.lineTo(currX, currY);
     ctx.stroke();
 }
 
@@ -144,8 +148,9 @@ function collectDiff() {
            || formerCanvas.data[i+2] !== currCanvas.data[i+2]
            || formerCanvas.data[i+3] !== currCanvas.data[i+3]) {
             const color = rgbToInt({red: currCanvas.data[i], green: currCanvas.data[i+1], blue: currCanvas.data[i+2]});
-            if(!coords.hasOwnProperty(color))
+            if(!coords.hasOwnProperty(color)) {
                 coords[color] = [];
+            }
             coords[color].push(i);
         }
     }
@@ -175,7 +180,7 @@ function sendToFB(coords) {
 
 function connect(roomId) {
     firebase.auth().onAuthStateChanged((user) => {
-        if (user && roomId){
+        if (user && roomId) {
             // User is signed in.
             console.log('connected');
             uid = user.uid;
@@ -206,12 +211,12 @@ function connect(roomId) {
 }
 
 function drawPixels(diff, diffModifiedArea) {
+    const color = intToRgb(diff.key);
     const rawImage = ctx.getImageData(
         diffModifiedArea.minX,
         diffModifiedArea.minY,
         diffModifiedArea.maxX - diffModifiedArea.minX,
         diffModifiedArea.maxY - diffModifiedArea.minY);
-    const color = intToRgb(diff.key);
     
     for(const coord of diff.val()) {
         rawImage.data[coord] = color.red;
