@@ -2,6 +2,13 @@
 /* eslint indent: ["error", 4, { "SwitchCase": 1 }] */
 /* globals firebase */
 
+//constants used to simulate bit shifts
+// k * SHIFT_8 = k<<8
+// floor(k / SHIFT_16) = k>>16
+const SHIFT_8 = 256;
+const SHIFT_16 = 65536;
+//const SHIFT_24 = 16777216;
+
 //globals for the canvas
 let canvas, ctx;
 let prevCanvas, prevCtx;
@@ -24,8 +31,6 @@ function init() {
     prevCanvas = cloneCanvas(canvas);
     prevCtx = prevCanvas.getContext('2d');
 
-    //event listeners (asynchronous programming)
-
     //executes whenever mouse comes clicks on canvas
     canvas.addEventListener('mousedown', (e) => { //arrow callback function
         handleMouseEvent('down', e);
@@ -47,7 +52,7 @@ function init() {
     }, false);
 
 
-    // color changing events ------------------------------------------------
+    //color changing events ------------------------------------------------
 
 
     document.getElementsByClassName('button red')[0].addEventListener( 'click', (e) => {
@@ -122,24 +127,16 @@ function dotMeUpBrotendo(currX, currY) {
     ctx.beginPath();
     ctx.fillRect(currX, currY, 1, 1);
     ctx.closePath();
-    //cvSave = ctx.getImageData(0,0,canvas.width, canvas.height);
 }
 
 function draw(currX,currY) {
     ctx.lineTo(currX,currY);
     ctx.stroke();
-    //cvSave = ctx.getImageData(0,0,canvas.width, canvas.height);
 }
 
 function collectDiff() {
     const currCanvas = ctx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
     const formerCanvas = prevCtx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
-    /*const tempList = [];
-    for (let i = 0; i < currCanvas.data.length; i++ ) {
-        if (formerCanvas.data[i] !== currCanvas.data[i]) {
-            tempList.push(i);
-        }
-    }*/
     
     const coords = {};
     for(let i = 0; i < currCanvas.data.length; i += 4) {
@@ -147,9 +144,7 @@ function collectDiff() {
            || formerCanvas.data[i+1] !== currCanvas.data[i+1]
            || formerCanvas.data[i+2] !== currCanvas.data[i+2]
            || formerCanvas.data[i+3] !== currCanvas.data[i+3]) {
-            const color = rgbComponentToHex(currCanvas.data[i])
-                        + rgbComponentToHex(currCanvas.data[i+1])
-                        + rgbComponentToHex(currCanvas.data[i+2]);
+            const color = rgbToInt({red: currCanvas.data[i], green: currCanvas.data[i+1], blue: currCanvas.data[i+2]});
             if(!coords.hasOwnProperty(color))
                 coords[color] = [];
             coords[color].push(i/4);
@@ -157,12 +152,6 @@ function collectDiff() {
     }
     
     return coords;
-}
-
-function rgbComponentToHex(component)
-{
-    const hex = component.toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
 }
 
 function updateRectangle(currX,currY) {
@@ -182,12 +171,6 @@ function updateRectangle(currX,currY) {
 
 
 function sendToFB(coords) {
-    /*fbCon.child(roomId).child('diffs').push({
-        [color]: {
-            coords,
-            modifiedArea
-        }
-    });*/
     fbCon.child(roomId).child('diffs').push({coords, modifiedArea});
 }
 
@@ -214,9 +197,7 @@ function connect(roomId) {
 
             fbCon.child(roomId).child('diffs').on('child_added', (snapshot) => {
                 const modifiedArea = snapshot.child('modifiedArea').val();
-                snapshot.child('coords').forEach(child =>
-                    //drawPixels( child.child('modifiedArea').val(), child.child('coords').val()) )
-                    drawPixels(child, modifiedArea));
+                snapshot.child('coords').forEach(child => drawPixels(child, modifiedArea));
             });
         } else {
             console.log('Failed to connect to Firebase.');
@@ -226,23 +207,31 @@ function connect(roomId) {
 
 function drawPixels(diff, modifiedArea) {
     const rawImage = ctx.getImageData(modifiedArea.minWidth, modifiedArea.minHeight, modifiedArea.maxWidth, modifiedArea.maxHeight);
-    console.log(modifiedArea);
-    
-    const red = parseInt(diff.key.substring(0, 2), 16);
-    const green = parseInt(diff.key.substring(2, 4), 16);
-    const blue = parseInt(diff.key.substring(4, 6), 16);
+    const color = intToRgb(diff.key);
     
     for(const coord of diff.val()) {
-        console.log(coord);
         const canvasIndex = coord * 4;
-        rawImage.data[canvasIndex] = red;
-        rawImage.data[canvasIndex+1] = green;
-        rawImage.data[canvasIndex+2] = blue;
+        rawImage.data[canvasIndex] = color.red;
+        rawImage.data[canvasIndex+1] = color.green;
+        rawImage.data[canvasIndex+2] = color.blue;
         rawImage.data[canvasIndex+3] = 255;
     }
 
     ctx.putImageData(rawImage, modifiedArea.minWidth, modifiedArea.minHeight);
     prevCtx.putImageData(rawImage, modifiedArea.minWidth, modifiedArea.minHeight);
+}
+
+function rgbToInt(color) {
+    return (color.red * SHIFT_16) + (color.green * SHIFT_8) + color.blue;
+}
+
+function intToRgb(color) {
+    const red = Math.floor(color / SHIFT_16);
+    color -= red * SHIFT_16;
+    const green = Math.floor(color / SHIFT_8);
+    const blue = color - (green * SHIFT_8);
+    
+    return {red, green, blue};
 }
 
 function cloneCanvas(oldCanvas) {
