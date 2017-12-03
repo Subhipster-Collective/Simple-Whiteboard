@@ -1,7 +1,7 @@
 /* eslint-env browser */
 /* eslint indent: ["error", 4, { "SwitchCase": 1 }] */
 /* globals firebase */
-/* eslint no-fallthrough: ["error", { "commentPattern": "break omitted" }] */
+/* eslint no-fallthrough: ["error", { "commentPattern": "falls through" }] */
 
 //constants used to simulate bit shifts
 // k * SHIFT_8 = k<<8
@@ -17,8 +17,7 @@ let isDown = false;
 const modifiedArea = {};
 
 //globals for the networking
-let uid;
-let fbCon, boards, users;
+let fbCon, boardRef, usersRef;
 const roomId = extractQueryString('roomId');
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
@@ -31,6 +30,8 @@ function init() {
 
     prevCanvas = cloneCanvas(canvas);
     prevCtx = prevCanvas.getContext('2d');
+
+    ctx.lineWidth = 2;
 
     //executes whenever mouse comes clicks on canvas
     canvas.addEventListener('mousedown', handleMouseEvent, false);
@@ -45,33 +46,10 @@ function init() {
     canvas.addEventListener('mouseout', handleMouseEvent, false);
 
 
-    //color changing events ------------------------------------------------
-
-
-    document.getElementsByClassName('button red')[0].addEventListener( 'click', (e) => {
-        ctx.strokeStyle = 'red';
-        ctx.fillStyle = 'red';
-    });
-
-    document.getElementsByClassName('button black')[0].addEventListener( 'click', (e) => {
-        ctx.strokeStyle = 'black';
-        ctx.fillStyle = 'black';
-    });
-
-    document.getElementsByClassName('button green')[0].addEventListener( 'click' , (e) => {
-        ctx.strokeStyle = '#00ff00';
-        ctx.fillStyle = '#00ff00';
-    });
-
-    document.getElementsByClassName('button blue')[0].addEventListener( 'click' , (e) => {
-        ctx.strokeStyle = 'blue';
-        ctx.fillStyle = 'blue';
-    });
-
-    document.getElementsByClassName('button yellow')[0].addEventListener( 'click' , (e) => {
-        ctx.strokeStyle = 'yellow';
-        ctx.fillStyle = 'yellow';
-    });
+    //color changing events
+    for(const button of document.getElementsByClassName('button')) {
+        button.addEventListener('click', setColor);
+    }
 }
 
 function handleMouseEvent(e) {
@@ -87,7 +65,7 @@ function handleMouseEvent(e) {
                 modifiedArea.minY = currY;
                 modifiedArea.maxY = currY;
 
-                dotMeUpBrotendo(currX, currY);
+                drawDot(currX, currY);
                 isDown = true;
                 break;
             }
@@ -107,14 +85,14 @@ function handleMouseEvent(e) {
                     break;
                 }
             }
-            //break omitted
+            //falls through
             case 'mouseup': {
                 modifiedArea.minX -= 5;
                 modifiedArea.maxX += 5;
                 modifiedArea.minY -= 5;
                 modifiedArea.maxY += 5;
                 const coords = collectDiff();
-                sendToFB(coords);
+                boardRef.child('diffs').push({coords, modifiedArea});
                 isDown = false;
                 break;
             }
@@ -122,17 +100,25 @@ function handleMouseEvent(e) {
     }
 }
 
+function setColor(e) {
+    const color = getComputedStyle(e.target).backgroundColor;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+}
+
 //draws a dot if you click
-function dotMeUpBrotendo(currX, currY) {
-    ctx.moveTo(currX, currY);
+function drawDot(currX, currY) {
+    const halfWidth = Math.floor(ctx.lineWidth / 2);
+    ctx.moveTo(currX - halfWidth, currY - halfWidth);
     ctx.beginPath();
-    ctx.fillRect(currX, currY, 1, 1);
+    ctx.fillRect(currX - halfWidth, currY - halfWidth, ctx.lineWidth, ctx.lineWidth);
     ctx.closePath();
 }
 
 function draw(currX, currY) {
     ctx.lineTo(currX, currY);
     ctx.stroke();
+    console.log(ctx.lineWidth);
 }
 
 function collectDiff() {
@@ -174,33 +160,28 @@ function updateRectangle(currX,currY) {
 // networking -------------------------------------------------
 
 
-function sendToFB(coords) {
-    boards.child(roomId).child('diffs').push({coords, modifiedArea});
-}
-
 function connect(roomId) {
     firebase.auth().onAuthStateChanged((user) => {
         if (user && roomId) {
             // User is signed in.
             console.log('connected');
-            uid = user.uid;
             fbCon = firebase.database().ref();
-            boards = fbCon.child('boards');
-            users = fbCon.child('users');
+            boardRef = fbCon.child('boards').child(roomId);
+            usersRef = fbCon.child('users').child(roomId);
 
             const connectedRef = firebase.database().ref('.info/connected');
             connectedRef.on('value', (snap) => {
                 if (snap.val() === true) {
                     // We're connected (or reconnected)! Do anything here that should happen only if online (or on reconnect)
                     
-                    users.child(roomId).update({[uid]: true});
+                    usersRef.update({[user.uid]: true});
 
                     // When I disconnect, remove this device
-                    users.child(roomId).onDisconnect().update({[uid]: false});
+                    usersRef.onDisconnect().update({[user.uid]: false});
                 }
             });
 
-            boards.child(roomId).child('diffs').on('child_added', (snapshot) => {
+            boardRef.child('diffs').on('child_added', (snapshot) => {
                 const modifiedArea = snapshot.child('modifiedArea').val();
                 snapshot.child('coords').forEach(child => drawPixels(child, modifiedArea));
             });
