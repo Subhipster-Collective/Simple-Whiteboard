@@ -1,5 +1,5 @@
 body {
-    background-color: lightgray;
+    background-color: #484848;
 }
 
 #color-picker {
@@ -8,14 +8,15 @@ body {
     margin-top: 30px;
     height: 40px;
     width: 185px;
+    background-color: darkgray;
 }
 
 .whiteboard {
     background-color: white;
-    position:absolute;
+    position: absolute;
     top: 10%;
     left: 18%;
-    border:2px solid;
+    border: 2px solid;
 }
 
 .button {
@@ -25,22 +26,23 @@ body {
     margin: 5px;
     border: 1px solid rgba(0, 0, 0, .2);
 }
- .red {
-     background-color: #ff0000;
- }
 
- .blue {
-     background-color: #0000ff
- }
+.red {
+    background-color: red;
+}
 
- .green {
-     background-color: green;
- }
- 
- .yellow {
-     background-color: yellow;
- }
+.blue {
+    background-color: blue
+}
 
- .black {
-     background-color: black;
- }
+.green {
+    background-color: #00ff00;
+}
+
+.yellow {
+    background-color: yellow;
+}
+
+.black {
+    background-color: black;
+}

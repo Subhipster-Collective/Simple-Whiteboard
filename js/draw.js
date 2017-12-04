@@ -22,6 +22,7 @@ const roomId = extractQueryString('roomId');
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
 function init() {
+    console.log(roomId);
     //initialize exchange
     connect(roomId);
     //initlaize canvas elements
@@ -61,22 +62,23 @@ function handleMouseEvent(e) {
 
                 modifiedArea.minX = currX;
                 modifiedArea.maxX = currX;
-
                 modifiedArea.minY = currY;
                 modifiedArea.maxY = currY;
+                
+                isDown = true;
 
                 drawDot(currX, currY);
-                isDown = true;
+                
                 break;
             }
             case 'mousemove': {
                 if (isDown) {
                     const currX = e.clientX - canvas.offsetLeft;
                     const currY = e.clientY - canvas.offsetTop;
-
-                    updateRectangle(currX, currY);
-
-                    draw(currX, currY);
+                    
+                    drawLine(currX, currY);
+                    updateModifiedArea(currX, currY);
+                    ctx.moveTo(currX, currY);
                 }
                 break;
             }
@@ -87,13 +89,13 @@ function handleMouseEvent(e) {
             }
             //falls through
             case 'mouseup': {
+                isDown = false;
+                
                 modifiedArea.minX -= 5;
                 modifiedArea.maxX += 5;
                 modifiedArea.minY -= 5;
                 modifiedArea.maxY += 5;
-                const coords = collectDiff();
-                boardRef.child('diffs').push({coords, modifiedArea});
-                isDown = false;
+                boardRef.child('diffs').push({coords: collectDiff(), modifiedArea});
                 break;
             }
         }
@@ -115,10 +117,9 @@ function drawDot(currX, currY) {
     ctx.closePath();
 }
 
-function draw(currX, currY) {
+function drawLine(currX, currY) {
     ctx.lineTo(currX, currY);
     ctx.stroke();
-    console.log(ctx.lineWidth);
 }
 
 function collectDiff() {
@@ -144,7 +145,7 @@ function collectDiff() {
     return coords;
 }
 
-function updateRectangle(currX,currY) {
+function updateModifiedArea(currX, currY) {
     if (currX < modifiedArea.minX)
         modifiedArea.minX = currX;
     else if (currX > modifiedArea.maxX)
@@ -156,6 +157,7 @@ function updateRectangle(currX,currY) {
         modifiedArea.maxY = currY;
 
 }
+
 
 // networking -------------------------------------------------
 
@@ -183,7 +185,7 @@ function connect(roomId) {
 
             boardRef.child('diffs').on('child_added', (snapshot) => {
                 const modifiedArea = snapshot.child('modifiedArea').val();
-                snapshot.child('coords').forEach(child => drawPixels(child, modifiedArea));
+                snapshot.child('coords').forEach(child => drawDiff(child, modifiedArea));
             });
         } else {
             console.log('Failed to connect to Firebase.');
@@ -191,7 +193,7 @@ function connect(roomId) {
     });
 }
 
-function drawPixels(diff, diffModifiedArea) {
+function drawDiff(diff, diffModifiedArea) {
     const color = intToRgb(diff.key);
     const rawImage = ctx.getImageData(
         diffModifiedArea.minX,
@@ -241,7 +243,7 @@ function cloneCanvas(oldCanvas) {
 
 function extractQueryString(name) {
     const url = window.location.href;
-    name = name.replace(/[\[\]]/g, '\\$&');
+    name = name.replace(/[[\]]/g, '\\$&');
     const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
         results = regex.exec(url);
     if (!results) return null;
