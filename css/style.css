@@ -1,14 +1,39 @@
 body {
-    background-color: #484848;
+    //background-color: #484848;
+    background-color: lightgray;
+}
+
+#tools {
+    margin-top: 30px;
+    margin: auto;
+    width: 480px;
 }
 
 #color-picker {
     border: 1px solid black;
     margin: auto;
-    margin-top: 30px;
+    float: left;
     height: 40px;
     width: 185px;
-    background-color: darkgray;
+    //background-color: darkgray;
+}
+
+#size-picker {
+    border: 1px solid black;
+    margin: auto;
+    float: left;
+    height: 40px;
+    width: 185px;
+    //background-color: darkgray;
+}
+
+#clear-button {
+    border: 1px solid black;
+    margin: auto;
+    float: left;
+    height: 40px;
+    width: 60px;
+    background-color: white;
 }
 
 .whiteboard {
@@ -19,7 +44,7 @@ body {
     border: 2px solid;
 }
 
-.button {
+.color-button {
     float: left;
     width: 25px;
     height: 25px;
@@ -45,4 +70,48 @@ body {
 
 .black {
     background-color: black;
+}
+
+.size-button {
+    float: left;
+    width: 25px;
+    height: 25px;
+    margin: 5px;
+    
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+    -khtml-user-select: none; /* Konqueror HTML */
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* Internet Explorer/Edge */
+    user-select: none; /* Non-prefixed version, currently supported by Chrome and Opera */
+}
+
+.smaller {
+    font-size: 10px;
+    margin-top: 14px;
+    --size: 1;
+}
+
+.small {
+    font-size: 20px;
+    margin-top: 7px;
+    --size: 2;
+}
+
+.medium {
+    font-size: 30px;
+    margin-top: 0px;
+    --size: 4;
+}
+
+.big {
+    font-size: 40px;
+    margin-top: -7px;
+    --size: 8;
+}
+
+.bigger {
+    font-size: 50px;
+    margin-top: -14px;
+    --size: 16;
 }

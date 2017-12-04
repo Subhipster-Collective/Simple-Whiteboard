@@ -26,7 +26,6 @@ function init() {
     diffCanvas.width = mainCanvas.width;
     diffCanvas.height = mainCanvas.height;
     diffCtx = diffCanvas.getContext('2d');
-    diffCtx.lineWidth = mainCtx.lineWidth;
 
     //executes whenever mouse comes clicks on canvas
     mainCanvas.addEventListener('mousedown', handleMouseEvent, false);
@@ -41,9 +40,15 @@ function init() {
     mainCanvas.addEventListener('mouseout', handleMouseEvent, false);
 
     //color changing events
-    for(const button of document.getElementsByClassName('button')) {
+    for(const button of document.getElementsByClassName('color-button')) {
         button.addEventListener('click', setColor);
     }
+    
+    for(const button of document.getElementsByClassName('size-button')) {
+        button.addEventListener('click', setLineWidth);
+    }
+    
+    document.getElementById('clear-button').addEventListener('click', e => destroyBoard());
 }
 
 function handleMouseEvent(e) {
@@ -75,7 +80,7 @@ function handleMouseEvent(e) {
             }
             //falls through
             case 'mouseup': {
-                boardRef.child('diffs').push({coords: myCoords, color: mainCtx.strokeStyle});
+                boardRef.child('diffs').push({coords: myCoords, color: mainCtx.strokeStyle, lineWidth: mainCtx.lineWidth});
                 myCoords = [];
                 isDown = false;
                 
@@ -91,6 +96,10 @@ function setColor(e) {
     mainCtx.fillStyle = color;
 }
 
+function setLineWidth(e) {
+    mainCtx.lineWidth = getComputedStyle(e.target).getPropertyValue('--size');
+}
+
 //draws a dot if you click
 function drawDot(x, y, ctx) {
     const halfWidth = Math.floor(ctx.lineWidth / 2);
@@ -98,11 +107,18 @@ function drawDot(x, y, ctx) {
     ctx.beginPath();
     ctx.fillRect(x - halfWidth, y - halfWidth, ctx.lineWidth, ctx.lineWidth);
     ctx.closePath();
+    drawLine(x, y, ctx);
 }
 
 function drawLine(x, y, ctx) {
     ctx.lineTo(x, y);
     ctx.stroke();
+}
+
+function destroyBoard() {
+    mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+    boardRef.child('diffs').set(null);
+    boardRef.child('diffs').push({clear: true});
 }
 
 
@@ -130,24 +146,31 @@ function connect(roomId) {
                 }
             });
 
-            boardRef.child('diffs').on('child_added', (diff) => {
-                const coords = diff.child('coords').val();
-                const color = diff.child('color').val();
-                diffCtx.strokeStyle = color;
-                diffCtx.fillStyle = color;
-                
-                drawDot(coords[0].x, coords[0].y, diffCtx);
-                for(let i = 1; i < coords.length; ++i) {
-                    drawLine(coords[i].x, coords[i].y, diffCtx);
-                }
-                
-                mainCtx.drawImage(diffCanvas, 0, 0);
-                diffCtx.clearRect(0, 0, diffCanvas.width, diffCanvas.height);
-            });
+            boardRef.child('diffs').on('child_added', mergeDiff);
         } else {
             console.log('Failed to connect to Firebase.');
         }
     });
+}
+
+function mergeDiff(diff) {
+    if(diff.hasChild('clear')) {
+        mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+    } else {
+        const coords = diff.child('coords').val();
+        const color = diff.child('color').val();
+        diffCtx.strokeStyle = color;
+        diffCtx.fillStyle = color;
+        diffCtx.lineWidth = diff.child('lineWidth').val();
+        
+        drawDot(coords[0].x, coords[0].y, diffCtx);
+        for(let i = 1; i < coords.length; ++i) {
+            drawLine(coords[i].x, coords[i].y, diffCtx);
+        }
+        
+        mainCtx.drawImage(diffCanvas, 0, 0);
+        diffCtx.clearRect(0, 0, diffCanvas.width, diffCanvas.height);
+    }
 }
 
 function extractQueryString(name) {
