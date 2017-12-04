@@ -3,18 +3,11 @@
 /* globals firebase */
 /* eslint no-fallthrough: ["error", { "commentPattern": "falls through" }] */
 
-//constants used to simulate bit shifts
-// k * SHIFT_8 = k<<8
-// floor(k / SHIFT_16) = k>>16
-const SHIFT_8 = 256;
-const SHIFT_16 = 65536;
-//const SHIFT_24 = 16777216;
-
 //globals for the canvas
-let canvas, ctx;
-let prevCanvas, prevCtx;
+let mainCanvas, mainCtx;
+let diffCanvas, diffCtx;
 let isDown = false;
-const modifiedArea = {};
+let myCoords = [];
 
 //globals for the networking
 let fbCon, boardRef, usersRef;
@@ -22,30 +15,30 @@ const roomId = extractQueryString('roomId');
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
 function init() {
-    console.log(roomId);
     //initialize exchange
     connect(roomId);
     //initlaize canvas elements
-    canvas = document.getElementById('myCanvas');
-    ctx = canvas.getContext('2d');
-
-    prevCanvas = cloneCanvas(canvas);
-    prevCtx = prevCanvas.getContext('2d');
-
-    ctx.lineWidth = 2;
+    mainCanvas = document.getElementById('myCanvas');
+    mainCtx = mainCanvas.getContext('2d');
+    mainCtx.lineWidth = 2;
+    
+    diffCanvas = document.createElement('canvas');
+    diffCanvas.width = mainCanvas.width;
+    diffCanvas.height = mainCanvas.height;
+    diffCtx = diffCanvas.getContext('2d');
+    diffCtx.lineWidth = mainCtx.lineWidth;
 
     //executes whenever mouse comes clicks on canvas
-    canvas.addEventListener('mousedown', handleMouseEvent, false);
+    mainCanvas.addEventListener('mousedown', handleMouseEvent, false);
 
     //executes whenever mouse moves over canvas
-    canvas.addEventListener('mousemove', handleMouseEvent, false);
+    mainCanvas.addEventListener('mousemove', handleMouseEvent, false);
 
     //executes whenver mouse lifts off canvas.
-    canvas.addEventListener('mouseup', handleMouseEvent, false);
+    mainCanvas.addEventListener('mouseup', handleMouseEvent, false);
 
     //executes whenever mouse goes out of canvas bounds
-    canvas.addEventListener('mouseout', handleMouseEvent, false);
-
+    mainCanvas.addEventListener('mouseout', handleMouseEvent, false);
 
     //color changing events
     for(const button of document.getElementsByClassName('button')) {
@@ -57,28 +50,21 @@ function handleMouseEvent(e) {
     if(fbCon) {
         switch(e.type) {
             case 'mousedown': {
-                const currX = e.clientX - canvas.offsetLeft;
-                const currY = e.clientY - canvas.offsetTop;
-
-                modifiedArea.minX = currX;
-                modifiedArea.maxX = currX;
-                modifiedArea.minY = currY;
-                modifiedArea.maxY = currY;
-                
+                const currX = e.clientX - mainCanvas.offsetLeft;
+                const currY = e.clientY - mainCanvas.offsetTop;
+                myCoords.push({x: currX, y: currY});
+                drawDot(currX, currY, mainCtx);
                 isDown = true;
-
-                drawDot(currX, currY);
                 
                 break;
             }
             case 'mousemove': {
                 if (isDown) {
-                    const currX = e.clientX - canvas.offsetLeft;
-                    const currY = e.clientY - canvas.offsetTop;
-                    
-                    drawLine(currX, currY);
-                    updateModifiedArea(currX, currY);
-                    ctx.moveTo(currX, currY);
+                    const currX = e.clientX - mainCanvas.offsetLeft;
+                    const currY = e.clientY - mainCanvas.offsetTop;
+                    myCoords.push({x: currX, y: currY});
+                    drawLine(currX, currY, mainCtx);
+                    //mainCtx.moveTo(currX, currY);
                 }
                 break;
             }
@@ -89,13 +75,10 @@ function handleMouseEvent(e) {
             }
             //falls through
             case 'mouseup': {
+                boardRef.child('diffs').push({coords: myCoords, color: mainCtx.strokeStyle});
+                myCoords = [];
                 isDown = false;
                 
-                modifiedArea.minX -= 5;
-                modifiedArea.maxX += 5;
-                modifiedArea.minY -= 5;
-                modifiedArea.maxY += 5;
-                boardRef.child('diffs').push({coords: collectDiff(), modifiedArea});
                 break;
             }
         }
@@ -104,58 +87,22 @@ function handleMouseEvent(e) {
 
 function setColor(e) {
     const color = getComputedStyle(e.target).backgroundColor;
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
+    mainCtx.strokeStyle = color;
+    mainCtx.fillStyle = color;
 }
 
 //draws a dot if you click
-function drawDot(currX, currY) {
+function drawDot(x, y, ctx) {
     const halfWidth = Math.floor(ctx.lineWidth / 2);
-    ctx.moveTo(currX - halfWidth, currY - halfWidth);
+    ctx.moveTo(x - halfWidth, y - halfWidth);
     ctx.beginPath();
-    ctx.fillRect(currX - halfWidth, currY - halfWidth, ctx.lineWidth, ctx.lineWidth);
+    ctx.fillRect(x - halfWidth, y - halfWidth, ctx.lineWidth, ctx.lineWidth);
     ctx.closePath();
 }
 
-function drawLine(currX, currY) {
-    ctx.lineTo(currX, currY);
+function drawLine(x, y, ctx) {
+    ctx.lineTo(x, y);
     ctx.stroke();
-}
-
-function collectDiff() {
-    const width = modifiedArea.maxX - modifiedArea.minX;
-    const height = modifiedArea.maxY - modifiedArea.minY;
-    const currCanvas = ctx.getImageData(modifiedArea.minX, modifiedArea.minY, width, height);
-    const formerCanvas = prevCtx.getImageData(modifiedArea.minX, modifiedArea.minY, width, height);
-    
-    const coords = {};
-    for(let i = 0; i < currCanvas.data.length; i += 4) {
-        if(   formerCanvas.data[i] !== currCanvas.data[i]
-           || formerCanvas.data[i+1] !== currCanvas.data[i+1]
-           || formerCanvas.data[i+2] !== currCanvas.data[i+2]
-           || formerCanvas.data[i+3] !== currCanvas.data[i+3]) {
-            const color = rgbToInt({red: currCanvas.data[i], green: currCanvas.data[i+1], blue: currCanvas.data[i+2]});
-            if(!coords.hasOwnProperty(color)) {
-                coords[color] = [];
-            }
-            coords[color].push(i);
-        }
-    }
-    
-    return coords;
-}
-
-function updateModifiedArea(currX, currY) {
-    if (currX < modifiedArea.minX)
-        modifiedArea.minX = currX;
-    else if (currX > modifiedArea.maxX)
-        modifiedArea.maxX = currX;
-
-    if (currY < modifiedArea.minY)
-        modifiedArea.minY = currY;
-    else if (currY > modifiedArea.maxY)
-        modifiedArea.maxY = currY;
-
 }
 
 
@@ -183,62 +130,24 @@ function connect(roomId) {
                 }
             });
 
-            boardRef.child('diffs').on('child_added', (snapshot) => {
-                const modifiedArea = snapshot.child('modifiedArea').val();
-                snapshot.child('coords').forEach(child => drawDiff(child, modifiedArea));
+            boardRef.child('diffs').on('child_added', (diff) => {
+                const coords = diff.child('coords').val();
+                const color = diff.child('color').val();
+                diffCtx.strokeStyle = color;
+                diffCtx.fillStyle = color;
+                
+                drawDot(coords[0].x, coords[0].y, diffCtx);
+                for(let i = 1; i < coords.length; ++i) {
+                    drawLine(coords[i].x, coords[i].y, diffCtx);
+                }
+                
+                mainCtx.drawImage(diffCanvas, 0, 0);
+                diffCtx.clearRect(0, 0, diffCanvas.width, diffCanvas.height);
             });
         } else {
             console.log('Failed to connect to Firebase.');
         }
     });
-}
-
-function drawDiff(diff, diffModifiedArea) {
-    const color = intToRgb(diff.key);
-    const rawImage = ctx.getImageData(
-        diffModifiedArea.minX,
-        diffModifiedArea.minY,
-        diffModifiedArea.maxX - diffModifiedArea.minX,
-        diffModifiedArea.maxY - diffModifiedArea.minY);
-    
-    for(const coord of diff.val()) {
-        rawImage.data[coord] = color.red;
-        rawImage.data[coord+1] = color.green;
-        rawImage.data[coord+2] = color.blue;
-        rawImage.data[coord+3] = 255;
-    }
-
-    ctx.putImageData(rawImage, diffModifiedArea.minX, diffModifiedArea.minY);
-    prevCtx.putImageData(rawImage, diffModifiedArea.minX, diffModifiedArea.minY);
-}
-
-function rgbToInt(color) {
-    return (color.red * SHIFT_16) + (color.green * SHIFT_8) + color.blue;
-}
-
-function intToRgb(color) {
-    const red = Math.floor(color / SHIFT_16);
-    color -= red * SHIFT_16;
-    const green = Math.floor(color / SHIFT_8);
-    const blue = color - (green * SHIFT_8);
-    
-    return {red, green, blue};
-}
-
-function cloneCanvas(oldCanvas) {
-    //create a new canvas
-    const newCanvas = document.createElement('canvas');
-    const context = newCanvas.getContext('2d');
-
-    //set dimensions
-    newCanvas.width = oldCanvas.width;
-    newCanvas.height = oldCanvas.height;
-
-    //apply the old canvas to the new one
-    context.drawImage(oldCanvas, 0, 0);
-
-    //return the new canvas
-    return newCanvas;
 }
 
 function extractQueryString(name) {
