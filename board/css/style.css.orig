@@ -1,0 +1,91 @@
+<<<<<<< Updated upstream
+body {
+    background-color: lightgray;
+}
+
+#color-picker {
+    border: 1px solid black;
+    margin: auto;
+    margin-top: 30px;
+    height: 40px;
+    width: 185px;
+}
+
+.whiteboard {
+    background-color: white;
+    position:absolute;
+    top: 10%;
+    left: 18%;
+    border:2px solid;
+}
+
+.button {
+    float: left;
+    width: 25px;
+    height: 25px;
+    margin: 5px;
+    border: 1px solid rgba(0, 0, 0, .2);
+}
+ .red {
+     background-color: #ff0000;
+ }
+
+ .blue {
+     background-color: #0000ff
+ }
+
+ .green {
+     background-color: green;
+ }
+ 
+ .yellow {
+     background-color: yellow;
+ }
+
+ .black {
+     background-color: black;
+ }
+=======
+body {
+    background-color: lightgray;
+}
+
+#color-picker {
+    border: 1px solid black;
+    margin: auto;
+    margin-top: 30px;
+    height: 40px;
+    width: 150px;
+}
+
+.whiteboard {
+    background-color: white;
+    position:absolute;
+    top: 10%;
+    left: 18%;
+    border:2px solid;
+}
+
+.button {
+    float: left;
+    width: 25px;
+    height: 25px;
+    margin: 5px;
+    border: 1px solid rgba(0, 0, 0, .2);
+}
+ .red {
+     background-color: #ff0000;
+ }
+
+ .blue {
+     background-color: #0000ff
+ }
+
+ .green {
+     background-color: green;
+ }
+
+ .black {
+     background-color: black;
+ }
+>>>>>>> Stashed changes

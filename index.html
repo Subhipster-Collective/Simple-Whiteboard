@@ -4,50 +4,15 @@
     <head>
         <link rel="stylesheet" type="text/css" href="css/style.css">
     </head>
-    <script src="https://www.gstatic.com/firebasejs/4.6.2/firebase.js"></script>
-    <script>
-        // Initialize Firebase
-        var config = {
-            apiKey: "AIzaSyAUEtS1zEakv0a1TIlsTobQwwTyvlUzQGc",
-            authDomain: "simple-whiteboard.firebaseapp.com",
-            databaseURL: "https://simple-whiteboard.firebaseio.com",
-            projectId: "simple-whiteboard",
-            storageBucket: "simple-whiteboard.appspot.com",
-            messagingSenderId: "272918396058"
-        };
-        firebase.initializeApp(config);
 
-        firebase.auth().signInAnonymously().catch(function(error) {
-            // Handle Errors here.
-            var errorCode = error.code;
-            var errorMessage = error.message;
-        });
-
-    </script>
-
-    <script src="js/draw.js"></script>
+    <script src="js/join-room.js"></script>
 
     <body onload="init()">
-            <canvas id="myCanvas" width="1200" height="600" class="whiteboard">
-            </canvas>
-            <div id='tools'>
-                <div id = 'color-picker'>
-                    <div class = 'color-button black'> </div>
-                    <div class = 'color-button white'> </div>
-                    <div class = 'color-button red' > </div>
-                    <div class = 'color-button blue'> </div>
-                    <div class = 'color-button green'> </div>
-                    <div class = 'color-button yellow'> </div>
-                </div>
-                <div id = 'size-picker'>
-                    <div class = 'size-button smaller'>&#x25CF;</div>
-                    <div class = 'size-button small'>&#x25CF;</div>
-                    <div class = 'size-button medium'>&#x25CF;</div>
-                    <div class = 'size-button big'>&#x25CF;</div>
-                    <div class = 'size-button bigger'>&#x25CF;</div>
-                </div>
-                <div id = 'clear-button'></div>
-            </div>
+        <div id = 'title'><h2>Whiteboard Love</h2></div>
+
+        <div id = 'spiel'> <p> "I don't like computers. I still like to do my drawings by hand."  - Dieter Rams </p></div>
+
+        <div id = 'make-room'>Create Whiteboard</div>
     </body>
 
 </html>
