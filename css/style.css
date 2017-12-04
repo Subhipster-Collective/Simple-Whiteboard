@@ -6,7 +6,7 @@ body {
 #tools {
     margin-top: 30px;
     margin: auto;
-    width: 480px;
+    width: 500px;
 }
 
 #color-picker {
@@ -14,7 +14,7 @@ body {
     margin: auto;
     float: left;
     height: 40px;
-    width: 185px;
+    width: 225px;
     //background-color: darkgray;
 }
 
@@ -52,6 +52,14 @@ body {
     border: 1px solid rgba(0, 0, 0, .2);
 }
 
+.black {
+    background-color: black;
+}
+
+.white {
+    background-color: white;
+}
+
 .red {
     background-color: red;
 }
@@ -66,10 +74,6 @@ body {
 
 .yellow {
     background-color: yellow;
-}
-
-.black {
-    background-color: black;
 }
 
 .size-button {
