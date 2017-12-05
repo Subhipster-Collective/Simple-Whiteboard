@@ -3,10 +3,14 @@
 /* globals firebase */
 /* eslint no-fallthrough: ["error", { "commentPattern": "falls through" }] */
 
+const MAX_MS_PER_DIFF = 1000;
+
 //globals for the canvas
 let mainCanvas, mainCtx;
 let diffCanvas, diffCtx;
 let isDown = false;
+let timeLast;
+let myCoordsIndex;
 let myCoords = [];
 
 //globals for the networking
@@ -41,11 +45,13 @@ function init() {
 
     //color changing events
     for(const button of document.getElementsByClassName('color-button')) {
-        button.addEventListener('click', setColor);
+        const color = getComputedStyle(button).backgroundColor;
+        button.addEventListener('click', e => setColor(color));
     }
     
     for(const button of document.getElementsByClassName('size-button')) {
-        button.addEventListener('click', setLineWidth);
+        const lineWidth = getComputedStyle(button).getPropertyValue('--size');
+        button.addEventListener('click', e => mainCtx.lineWidth = lineWidth);
     }
     
     document.getElementById('clear-button').addEventListener('click', e => destroyBoard());
@@ -61,6 +67,9 @@ function handleMouseEvent(e) {
                 drawDot(currX, currY, mainCtx);
                 isDown = true;
                 
+                timeLast = Date.now();
+                myCoordsIndex = 0;
+                
                 break;
             }
             case 'mousemove': {
@@ -70,6 +79,14 @@ function handleMouseEvent(e) {
                     myCoords.push({x: currX, y: currY});
                     drawLine(currX, currY, mainCtx);
                     //mainCtx.moveTo(currX, currY);
+                    
+                    const timeNow = Date.now();
+                    if(timeNow - timeLast > MAX_MS_PER_DIFF) {
+                        const endIndex = myCoords.length;
+                        pushDiff(myCoordsIndex, endIndex, timeLast, timeNow);
+                        myCoordsIndex = endIndex - 1;
+                        timeLast = timeNow;
+                    }
                 }
                 break;
             }
@@ -80,7 +97,7 @@ function handleMouseEvent(e) {
             }
             //falls through
             case 'mouseup': {
-                boardRef.child('diffs').push({coords: myCoords, color: mainCtx.strokeStyle, lineWidth: mainCtx.lineWidth});
+                pushDiff(myCoordsIndex, myCoords.length, timeLast, Date.now());
                 myCoords = [];
                 isDown = false;
                 
@@ -90,14 +107,9 @@ function handleMouseEvent(e) {
     }
 }
 
-function setColor(e) {
-    const color = getComputedStyle(e.target).backgroundColor;
+function setColor(color) {
     mainCtx.strokeStyle = color;
     mainCtx.fillStyle = color;
-}
-
-function setLineWidth(e) {
-    mainCtx.lineWidth = getComputedStyle(e.target).getPropertyValue('--size');
 }
 
 //draws a dot if you click
@@ -150,6 +162,16 @@ function connect(roomId) {
         } else {
             console.log('Failed to connect to Firebase.');
         }
+    });
+}
+
+function pushDiff(coordsStart, coordsEnd, timeStart, timeEnd) {
+    const coordsDelta = coordsEnd - coordsStart;
+    boardRef.child('diffs').push({
+        coords: myCoords.slice(coordsStart, coordsEnd),
+        color: mainCtx.strokeStyle,
+        lineWidth: mainCtx.lineWidth,
+        msPerStroke: coordsDelta === 0 ? 0 : (timeEnd - timeStart) / coordsDelta
     });
 }
 
