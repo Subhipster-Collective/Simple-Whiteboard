@@ -3,12 +3,12 @@
 /* globals firebase */
 /* eslint no-fallthrough: ["error", { "commentPattern": "falls through" }] */
 
-const MAX_MS_PER_DIFF = 1000;
+const MAX_MS_PER_DIFF = 100;
 
 //globals for the canvas
 let mainCanvas, mainCtx;
-let diffCanvas, diffCtx;
 let isDown = false;
+let pushDot;
 let timeLast;
 let myCoordsIndex;
 let myCoords = [];
@@ -26,11 +26,6 @@ function init() {
     mainCtx = mainCanvas.getContext('2d');
     mainCtx.lineWidth = 2;
     
-    diffCanvas = document.createElement('canvas');
-    diffCanvas.width = mainCanvas.width;
-    diffCanvas.height = mainCanvas.height;
-    diffCtx = diffCanvas.getContext('2d');
-
     //executes whenever mouse comes clicks on canvas
     mainCanvas.addEventListener('mousedown', handleMouseEvent, false);
 
@@ -66,6 +61,7 @@ function handleMouseEvent(e) {
                 myCoords.push({x: currX, y: currY});
                 drawDot(currX, currY, mainCtx);
                 isDown = true;
+                pushDot = true;
                 
                 timeLast = Date.now();
                 myCoordsIndex = 0;
@@ -78,13 +74,12 @@ function handleMouseEvent(e) {
                     const currY = e.clientY - mainCanvas.offsetTop;
                     myCoords.push({x: currX, y: currY});
                     drawLine(currX, currY, mainCtx);
-                    //mainCtx.moveTo(currX, currY);
                     
                     const timeNow = Date.now();
                     if(timeNow - timeLast > MAX_MS_PER_DIFF) {
                         const endIndex = myCoords.length;
-                        pushDiff(myCoordsIndex, endIndex, timeLast, timeNow);
-                        myCoordsIndex = endIndex - 1;
+                        pushDiff(myCoordsIndex, endIndex);
+                        myCoordsIndex = endIndex > 1 ? endIndex - 2 : 0; // Sending the last TWO points is for some reason necessary to keep the line from appearing broken.
                         timeLast = timeNow;
                     }
                 }
@@ -165,14 +160,17 @@ function connect(roomId) {
     });
 }
 
-function pushDiff(coordsStart, coordsEnd, timeStart, timeEnd) {
-    const coordsDelta = coordsEnd - coordsStart;
-    boardRef.child('diffs').push({
+function pushDiff(coordsStart, coordsEnd) {
+    const diff = {
         coords: myCoords.slice(coordsStart, coordsEnd),
         color: mainCtx.strokeStyle,
         lineWidth: mainCtx.lineWidth,
-        msPerStroke: coordsDelta === 0 ? 0 : (timeEnd - timeStart) / coordsDelta
-    });
+    };
+    if(pushDot) {
+        diff.drawDot = true;
+        pushDot = false;
+    }
+    boardRef.child('diffs').push(diff);
 }
 
 function mergeDiff(diff) {
@@ -181,11 +179,20 @@ function mergeDiff(diff) {
     } else {
         const coords = diff.child('coords').val();
         const color = diff.child('color').val();
+        
+        const diffCanvas = document.createElement('canvas');
+        diffCanvas.width = mainCanvas.width;
+        diffCanvas.height = mainCanvas.height;
+        const diffCtx = diffCanvas.getContext('2d');
         diffCtx.strokeStyle = color;
         diffCtx.fillStyle = color;
         diffCtx.lineWidth = diff.child('lineWidth').val();
         
-        drawDot(coords[0].x, coords[0].y, diffCtx);
+        if(diff.child('drawDot').val()) {
+            drawDot(coords[0].x, coords[0].y, diffCtx);
+        } else {
+            diffCtx.moveTo(coords[0].x, coords[0].y);
+        }
         for(let i = 1; i < coords.length; ++i) {
             drawLine(coords[i].x, coords[i].y, diffCtx);
         }

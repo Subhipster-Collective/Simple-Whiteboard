@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('simple-whiteboard-firebase-adminsdk-p3ksl-a90510e3ff.json');
+const serviceAccount = require('simple-whiteboard-admin.json');
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
