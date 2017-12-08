@@ -19,7 +19,8 @@ app.use(cors({origin: '*'}))
 
 app.get('/usedRoom', function (req, res) {
    boards.once('value', snapshot => {
-        res.send(Object.keys(snapshot.val()));
+       if (snapshot.exists()) res.send(Object.keys(snapshot.val()));
+       else res.send('[]');
    });
 });
 
