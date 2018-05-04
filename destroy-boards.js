@@ -12,17 +12,17 @@ const ref = db.ref(admin.databaseURL);
 const boards = ref.child('boards');
 const users = ref.child('users');
 
-users.on('value', rooms => rooms.forEach((room) => {
+users.on('value', boards => boards.forEach((board) => {
     let destroy = true;
-    const roomVal = room.val();
-    for(const user in roomVal) {
-        if(roomVal[user] === true) {
+    const boardVal = board.val();
+    for(const user in boardVal) {
+        if(boardVal[user] === true) {
             destroy = false;
             break;
         }
     }
     if(destroy) {
-        boards.child(room.key).set(null);
-        users.child(room.key).set(null);
+        boards.child(board.key).set(null);
+        users.child(board.key).set(null);
     }
 }));

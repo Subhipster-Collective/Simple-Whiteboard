@@ -25,7 +25,7 @@ body {
     font-size: 150%
 }
 
-#make-room {
+#make-board {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -39,10 +39,14 @@ body {
     text-align: center;
     vertical-align: middle;
     line-height: 50px;
-    font-size: 200%
-
+    font-size: 200%;
+    color: black;
 }
 
-#make-room:hover {
+#make-board:hover {
     background: grey;
+}
+
+a {
+    color: black;
 }

@@ -2,6 +2,7 @@
 /* eslint indent: ["error", 4, { "SwitchCase": 1 }] */
 /* globals firebase */
 /* eslint no-fallthrough: ["error", { "commentPattern": "falls through" }] */
+///* eslint no-unused-vars: ["warning", { "argsIgnorePattern": "event" }] */
 
 const MAX_MS_PER_DIFF = 100;
 
@@ -15,12 +16,12 @@ let myCoords = [];
 
 //globals for the networking
 let fbCon, boardRef, usersRef;
-const roomId = extractQueryString('roomId');
+const boardId = extractQueryString('id');
 
 //this function gets executed when html body is loaded (onLoad tag in HTML file)
 function init() {
     //initialize exchange
-    connect(roomId);
+    connect(boardId);
     //initlaize canvas elements
     mainCanvas = document.getElementById('myCanvas');
     mainCtx = mainCanvas.getContext('2d');
@@ -46,7 +47,7 @@ function init() {
     
     for(const button of document.getElementsByClassName('size-button')) {
         const lineWidth = getComputedStyle(button).getPropertyValue('--size');
-        button.addEventListener('click', e => mainCtx.lineWidth = lineWidth);
+        button.addEventListener('click', event => mainCtx.lineWidth = lineWidth);
     }
     
     document.getElementById('clear-button').addEventListener('click', e => destroyBoard());
@@ -132,14 +133,21 @@ function destroyBoard() {
 // networking -------------------------------------------------
 
 
-function connect(roomId) {
+function connect(boardId) {
     firebase.auth().onAuthStateChanged((user) => {
-        if (user && roomId) {
+        if (user) {
             // User is signed in.
             console.log('connected');
             fbCon = firebase.database().ref();
-            boardRef = fbCon.child('boards').child(roomId);
-            usersRef = fbCon.child('users').child(roomId);
+            if(boardId === null) {
+                usersRef = fbCon.child('users').push({[user.uid]: true});
+                boardId = usersRef.getKey();
+                const stateObj = {foo: 'bar'};
+                history.pushState(stateObj, '', window.location.href + '?id=' + boardId);
+            } else {
+                usersRef = fbCon.child('users').child(boardId);
+            }
+            boardRef = fbCon.child('boards').child(boardId);
 
             const connectedRef = firebase.database().ref('.info/connected');
             connectedRef.on('value', (snap) => {
@@ -198,7 +206,7 @@ function mergeDiff(diff) {
         }
         
         mainCtx.drawImage(diffCanvas, 0, 0);
-        diffCtx.clearRect(0, 0, diffCanvas.width, diffCanvas.height);
+        diffCtx.clearRect(0, 0, diffCanvas.width, diffCanvas.height); // TODO: necessary?
     }
 }
 
