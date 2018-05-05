@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('simple-whiteboard-admin.json');
+const serviceAccount = require('./simple-whiteboard-admin.json');
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
@@ -12,7 +12,7 @@ const ref = db.ref(admin.databaseURL);
 const boards = ref.child('boards');
 const users = ref.child('users');
 
-users.on('value', boards => boards.forEach((board) => {
+users.on('value', ids => ids.forEach((board) => {
     let destroy = true;
     const boardVal = board.val();
     for(const user in boardVal) {

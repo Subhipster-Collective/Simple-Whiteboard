@@ -142,8 +142,7 @@ function connect(boardId) {
             if(boardId === null) {
                 usersRef = fbCon.child('users').push({[user.uid]: true});
                 boardId = usersRef.getKey();
-                const stateObj = {foo: 'bar'};
-                history.pushState(stateObj, '', window.location.href + '?id=' + boardId);
+                history.replaceState({}, '', window.location.href + '?id=' + boardId);
             } else {
                 usersRef = fbCon.child('users').child(boardId);
             }
