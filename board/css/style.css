@@ -36,6 +36,14 @@ body {
     background-color: white;
 }
 
+#license {
+    color: lightgray;
+}
+
+a:hover#license {
+    color: white
+}
+
 .whiteboard {
     background-color: white;
     top: 10%;

@@ -1,8 +1,27 @@
+/*
+ * Copyright 2017-2018  Subhipster Collective
+ *
+ * This file is part of Simple Whiteboard.
+ *
+ * Simple Whiteboard is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Simple Whiteboard is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Simple Whiteboard.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /* eslint-env browser */
 /* eslint indent: ["error", 4, { "SwitchCase": 1 }] */
 /* globals firebase */
 /* eslint no-fallthrough: ["error", { "commentPattern": "falls through" }] */
-///* eslint no-unused-vars: ["warning", { "argsIgnorePattern": "event" }] */
+///* eslint no-unused-vars: ["warning", { "argsIgnorePattern": "event" }] */ // Doesn't seem to work
 
 const MAX_MS_PER_DIFF = 100;
 
